@@ -1,7 +1,5 @@
 # CodeCampus 🔥
 
-**Live:** https://codecampus.onrender.com/
-
 > A full-stack competitive coding platform with an online IDE, real-time 1v1 battles, structured learning hub, interactive roadmaps, and GitHub-style streak tracking.
 
 ---
