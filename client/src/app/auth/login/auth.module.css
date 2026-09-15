@@ -1,0 +1,47 @@
+.page {
+  min-height: calc(100vh - 60px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 24px;
+  background: radial-gradient(ellipse at top, rgba(57,211,83,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(88,166,255,0.06) 0%, transparent 60%);
+}
+.card {
+  width: 100%; max-width: 440px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-xl); padding: 40px 36px;
+  animation: fadeIn 0.4s ease;
+}
+.logo {
+  display: flex; align-items: center; gap: 8px;
+  justify-content: center; margin-bottom: 24px;
+}
+.logoIcon {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem;
+}
+.logoText {
+  font-size: 1.4rem; font-weight: 800;
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.title {
+  font-size: 1.5rem; font-weight: 800; text-align: center;
+  color: var(--text-primary); margin-bottom: 6px;
+}
+.sub { text-align: center; font-size: 0.875rem; margin-bottom: 28px; }
+
+.form { display: flex; flex-direction: column; gap: 18px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.submitBtn { width: 100%; justify-content: center; height: 44px; font-size: 0.95rem; margin-top: 4px; }
+
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0; color: var(--text-muted); font-size: 0.8rem;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.switchAuth { text-align: center; font-size: 0.875rem; color: var(--text-muted); }
+.authLink { color: var(--accent-blue); font-weight: 600; }
+.authLink:hover { text-decoration: underline; }

@@ -1,0 +1,850 @@
+/* ─── Versus Landing Page ────────────────────────────────────────────────── */
+
+.landingPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 60px 24px;
+}
+
+.orb1 {
+  position: absolute;
+  top: -120px;
+  left: -120px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(88, 166, 255, 0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orb2 {
+  position: absolute;
+  bottom: -80px;
+  right: -80px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(188, 140, 255, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.landingContainer {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  width: 100%;
+}
+
+.landingHeader {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.vsBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: rgba(88, 166, 255, 0.12);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-blue);
+  margin-bottom: 20px;
+}
+
+.landingTitle {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.landingSubtitle {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.authBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(240, 136, 62, 0.1);
+  border: 1px solid rgba(240, 136, 62, 0.3);
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  font-size: 0.875rem;
+  color: var(--accent-orange);
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  color: var(--accent-red);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.errorDismiss {
+  background: none;
+  border: none;
+  color: var(--accent-red);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.landingCards {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-bottom: 48px;
+}
+
+.modeCard {
+  flex: 1;
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.modeCard h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.modeCard p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+
+.modeIcon {
+  font-size: 2.5rem;
+}
+
+.modeBtn {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.connectingHint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.orDivider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.orLine {
+  width: 1px;
+  flex: 1;
+  background: var(--border);
+}
+
+.joinForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.codeInput {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.15em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* How it works */
+.howItWorks {
+  text-align: center;
+}
+
+.howItWorks h3 {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.steps {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.stepNum {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+  color: #000;
+  font-weight: 700;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ─── Lobby Room Page ──────────────────────────────────────────────────── */
+
+.lobbyPage {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  padding: 32px 24px 60px;
+}
+
+.lobbyContainer {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Room Header */
+.roomHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.roomHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.roomHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vsLogo {
+  font-size: 1.1rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.roomIdChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.roomIdLabel {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.roomIdCode {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  letter-spacing: 0.12em;
+}
+
+/* Disconnect Banner */
+.disconnectBanner {
+  padding: 12px 16px;
+  background: rgba(240, 136, 62, 0.1);
+  border: 1px solid rgba(240, 136, 62, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--accent-orange);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Players Row */
+.playersRow {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.playerCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 24px;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border);
+  background: var(--bg-card);
+  transition: border-color 0.2s;
+}
+
+.hostCard {
+  border-color: rgba(57, 211, 83, 0.4);
+  background: rgba(57, 211, 83, 0.05);
+}
+
+.opponentReady {
+  border-color: rgba(188, 140, 255, 0.4);
+  background: rgba(188, 140, 255, 0.05);
+}
+
+.waitingCard {
+  border-style: dashed;
+}
+
+.playerAvatar {
+  font-size: 2.5rem;
+}
+
+.playerAvatarEmpty {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+}
+
+.playerName {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.vsText {
+  font-size: 1.8rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  flex-shrink: 0;
+}
+
+/* Settings Panel */
+.settingsPanel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.settingsTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.lockedBadge {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  border-radius: 20px;
+  color: var(--accent-red);
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.settingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.difficultyButtons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.diffActive {
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+  color: #000 !important;
+  border-color: transparent !important;
+}
+
+.modeToggle {
+  display: flex;
+  gap: 8px;
+}
+
+.modeActive {
+  background: var(--accent-blue-d) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+.rangeInput {
+  width: 100%;
+  accent-color: var(--accent-green);
+  cursor: pointer;
+}
+
+.rangeLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Problem search */
+.searchWrapper {
+  position: relative;
+}
+
+.searchSpinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.searchDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  z-index: 100;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.searchResult {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.searchResult:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+}
+
+.searchResult:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.selectedProblems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.selectedProblemChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: var(--accent-blue);
+  font-family: var(--font-mono);
+}
+
+.chipRemove {
+  background: none;
+  border: none;
+  color: var(--accent-red);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+/* Start Row */
+.startRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.startBtn {
+  min-width: 240px;
+}
+
+.waitHint {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.waitingForHost {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Loading */
+.loadingScreen {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--text-secondary);
+}
+
+/* ─── Match Workspace ────────────────────────────────────────────────────── */
+
+.workspacePage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.workspaceBar {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.workspaceBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspaceBarCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.workspaceBarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.problemTab {
+  padding: 4px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.problemTab:hover { background: var(--bg-card); color: var(--text-primary); }
+.problemTabActive { background: var(--bg-card) !important; color: var(--text-primary) !important; border-color: var(--accent-blue) !important; }
+.problemTabDone { border-color: var(--accent-green) !important; color: var(--accent-green) !important; }
+
+.timer {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 4px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+}
+
+.timerDanger {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+  animation: pulse 1s ease infinite;
+}
+
+.scoreBox {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.workspaceLayout {
+  display: grid;
+  grid-template-columns: 200px 1fr 200px;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 52px);
+}
+
+/* Progress Sidebars */
+.progressSidebar {
+  border: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mySidebar {
+  background: rgba(57, 211, 83, 0.03);
+  border-right: 1px solid var(--border);
+}
+
+.opponentSidebar {
+  background: rgba(188, 140, 255, 0.03);
+  border-left: 1px solid var(--border);
+}
+
+.sidebarLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebarProblems {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebarProblem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.sidebarProblemNum {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sidebarProblemTitle {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.sidebarStatus {
+  margin-top: 4px;
+}
+
+.accepted { color: var(--accent-green); font-size: 1rem; font-weight: 700; }
+.partial  { color: var(--accent-orange); font-size: 0.8rem; font-weight: 600; }
+.notStarted { color: var(--text-muted); font-size: 0.8rem; }
+
+/* Editor Column */
+.editorColumn {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 16px;
+  gap: 12px;
+}
+
+.problemHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.problemTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.problemDescription {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.editorToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.langSelect {
+  width: auto;
+  min-width: 120px;
+}
+
+.typingIndicator {
+  font-size: 0.8rem;
+  color: var(--accent-purple);
+  animation: pulse 1.5s ease infinite;
+}
+
+.editorWrapper {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.editorActions {
+  display: flex;
+  gap: 10px;
+}
+
+.outputPanel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.outputLabel {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.outputContent {
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .landingCards {
+    flex-direction: column;
+  }
+  .orDivider {
+    flex-direction: row;
+    padding: 0 20px;
+  }
+  .orLine {
+    width: auto;
+    height: 1px;
+    flex: 1;
+  }
+  .playersRow {
+    flex-direction: column;
+  }
+  .settingsGrid {
+    grid-template-columns: 1fr;
+  }
+  .workspaceLayout {
+    grid-template-columns: 1fr;
+  }
+  .progressSidebar {
+    display: none;
+  }
+}

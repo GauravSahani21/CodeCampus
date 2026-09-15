@@ -1,0 +1,36 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: codecampus_mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: codecampus_redis
+    ports:
+      - '6379:6379'
+    restart: unless-stopped
+
+  compiler:
+    build:
+      context: ./compiler
+      dockerfile: Dockerfile
+    image: codecampus-compiler:latest
+    container_name: codecampus_compiler
+    ports:
+      - '2000:2000'
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 512M
+
+volumes:
+  mongo_data:

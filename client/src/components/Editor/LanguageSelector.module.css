@@ -1,0 +1,100 @@
+.wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  transition: background 0.2s;
+}
+.trigger:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  font-size: 1.1rem;
+}
+
+.label {
+  margin-right: 4px;
+}
+
+.chevron {
+  color: #888;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #252526;
+  border: 1px solid #3e3e42;
+  border-radius: 6px;
+  min-width: 180px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  padding: 4px 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.1s;
+}
+
+.option:hover {
+  background: #094771;
+  color: #fff;
+}
+
+.selected {
+  background: #0e639c;
+  color: #fff;
+}
+
+.optionLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.checkIcon {
+  width: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.optionIcon {
+  display: flex;
+  align-items: center;
+  font-size: 1.1rem;
+}
+
+.optionLabel {
+  font-weight: 500;
+}

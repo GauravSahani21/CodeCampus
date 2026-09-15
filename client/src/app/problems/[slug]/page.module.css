@@ -1,0 +1,588 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+  background-color: #0A0A0A; /* Dark premium background */
+  color: #E0E0E0;
+  min-height: 0;
+}
+
+.loadingPage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 60px);
+  background-color: #0A0A0A;
+}
+
+/* Split Layout */
+.splitLayout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  padding: 10px;
+  min-height: 0;
+}
+
+/* LEFT PANEL */
+.leftPanel {
+  flex: 0 0 45%;
+  min-width: 350px;
+  background-color: #1A1A1A; /* Slightly lighter than bg */
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #2A2A2A;
+  min-height: 0; /* Ensures flex child can scroll */
+}
+
+.leftTabs {
+  display: flex;
+  background-color: #141414;
+  border-bottom: 1px solid #2A2A2A;
+}
+
+.leftTab {
+  padding: 12px 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #888;
+  background: none;
+  border: none;
+  border-top: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.leftTab:hover {
+  color: #FFF;
+}
+
+.activeTab {
+  color: #FFF;
+  background-color: #1A1A1A;
+  border-top: 2px solid #3B82F6; /* Blue accent */
+}
+
+.tabIcon {
+  font-size: 1rem;
+}
+
+.leftContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.problemHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #FFF;
+  margin: 0;
+}
+
+.solvedIcon {
+  color: #10B981;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #2A2A2A;
+}
+
+.badgeEasy { color: #10B981; background: rgba(16, 185, 129, 0.15); }
+.badgeMedium { color: #F59E0B; background: rgba(245, 158, 11, 0.15); }
+.badgeHard { color: #EF4444; background: rgba(239, 68, 68, 0.15); }
+
+.badgeTopic {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9CA3AF;
+  background: #2A2A2A;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.badgeTopic:hover {
+  background: #3A3A3A;
+}
+
+.markdownBody {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #D1D5DB;
+}
+
+.markdownBody p {
+  margin-bottom: 16px;
+}
+
+.markdownBody code {
+  background-color: #2A2A2A;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85em;
+  color: #E5E7EB;
+}
+
+.markdownBody pre {
+  background-color: #2A2A2A;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid #3A3A3A;
+  margin-bottom: 16px;
+}
+
+.markdownBody pre code {
+  background-color: transparent;
+  padding: 0;
+  color: #A78BFA; /* Purple syntax style */
+}
+
+.markdownBody strong {
+  color: #F3F4F6;
+  font-weight: 600;
+}
+
+.markdownBody ul {
+  padding-left: 20px;
+  margin-bottom: 16px;
+}
+
+.placeholderTab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #6B7280;
+}
+
+
+/* RIGHT PANEL */
+.rightPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #1A1A1A;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2A2A2A;
+}
+
+.editorTopSection {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #141414;
+  border-bottom: 1px solid #2A2A2A;
+  flex-shrink: 0;
+}
+
+.editorActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editorContainer {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.iconBtn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.iconBtn:hover {
+  color: #FFF;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #2A2A2A;
+  border: 1px solid #3A3A3A;
+  color: #D1D5DB;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.actionBtn:hover {
+  background: #3A3A3A;
+  color: #FFF;
+}
+
+.botIcon {
+  color: #3B82F6;
+}
+
+.editorContainer {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* BOTTOM DRAWER */
+.bottomDrawer {
+  background-color: #1A1A1A;
+  border-top: 1px solid #2A2A2A;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.drawerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #141414;
+  border-bottom: 1px solid #2A2A2A;
+  flex-shrink: 0;
+}
+
+.consoleToggle {
+  background: none;
+  border: none;
+  color: #D1D5DB;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.consoleToggle:hover {
+  color: #FFF;
+}
+
+.runControls {
+  display: flex;
+  gap: 10px;
+}
+
+.runBtn {
+  background-color: #2A2A2A;
+  color: #D1D5DB;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.runBtn:hover:not(:disabled) {
+  background-color: #3A3A3A;
+  color: #FFF;
+}
+
+.submitBtn {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background-color: rgba(16, 185, 129, 0.25);
+}
+
+.runBtn:disabled, .submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.consoleContent {
+  padding: 16px;
+  background-color: #1A1A1A;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawerContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow-y: auto;
+  gap: 20px;
+  min-height: 0;
+}
+
+.consoleLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #9CA3AF;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.customInput {
+  width: 100%;
+  background-color: #141414;
+  border: 1px solid #2A2A2A;
+  border-radius: 6px;
+  color: #E5E7EB;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.customInput:focus {
+  outline: none;
+  border-color: #3B82F6;
+}
+
+@media (max-width: 900px) {
+  .splitLayout {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .leftPanel {
+    flex: none;
+    height: 50vh;
+  }
+  .rightPanel {
+    flex: none;
+    height: 60vh;
+  }
+}
+
+.resizeHandle {
+  width: 8px;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+.resizeHandle:hover, .resizeHandle:active {
+  background-color: #3B82F6;
+}
+
+.resizeHandleHorizontal {
+  height: 8px;
+  cursor: row-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+.resizeHandleHorizontal:hover, .resizeHandleHorizontal:active {
+  background-color: #3B82F6;
+}
+
+/* VS Code Editor Tabs & Breadcrumbs */
+.tabsBar {
+  height: 38px;
+  background: #1e1e1e;
+  border-bottom: 1px solid #2d2d2d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0 8px 0 0;
+}
+
+.tabItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 16px;
+  background: #1e1e1e;
+  border-right: 1px solid #2d2d2d;
+  border-top: 2px solid #007acc;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.breadcrumbsBar {
+  height: 24px;
+  background: #181818;
+  border-bottom: 1px solid #252526;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #888888;
+  flex-shrink: 0;
+}
+
+.breadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breadcrumbActive {
+  color: #cccccc;
+  font-weight: 600;
+}
+
+/* VS Code Status Bar */
+.statusBar {
+  height: 22px;
+  background: #007acc;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 0.68rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.statusLeft,
+.statusRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.statusItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statusItemInteractive {
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.statusItemInteractive:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.runButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: #2ea043;
+  border: 1px solid #238636;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.runButton:hover:not(:disabled) {
+  background: #3fb950;
+
+}
+
+.runButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submitButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  background: #0969da;
+  border: 1px solid #0860ca;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #1f6feb;
+
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.headerIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #cccccc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.headerIconBtn:hover {
+  background: #333333;
+  color: #ffffff;
+}

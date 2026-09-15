@@ -1,0 +1,110 @@
+.page { padding: 60px 0 100px; min-height: calc(100vh - 60px); position: relative; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 48px; gap: 24px; flex-wrap: wrap; }
+.title { font-size: 2.5rem; font-weight: 900; margin-bottom: 12px; letter-spacing: -0.02em; }
+.subtitle { color: var(--text-secondary); font-size: 1.1rem; }
+.noPaste {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem; color: var(--accent-orange); font-weight: 700;
+  background: rgba(240,136,62,0.08); border: 1px solid rgba(240,136,62,0.2);
+  padding: 8px 18px; border-radius: 20px; align-self: flex-start;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.filters { display: flex; gap: 12px; margin-bottom: 40px; flex-wrap: wrap; }
+
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+.courseCard {
+  background: var(--bg-card); 
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border); 
+  border-radius: var(--radius-xl); padding: 32px;
+  display: flex; flex-direction: column; gap: 16px;
+  text-decoration: none; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.courseCard::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+  transform: scaleX(0); transition: transform 0.4s ease;
+  transform-origin: left; opacity: 0.8;
+}
+.courseCardCompleted {
+  border-color: rgba(57, 211, 83, 0.4);
+}
+.courseCardCompleted::before {
+  transform: scaleX(1);
+  background: var(--accent-green);
+}
+.courseCard:hover { 
+  border-color: var(--accent-green); 
+  transform: translateY(-8px); 
+  box-shadow: var(--shadow-lg);
+  background: var(--bg-card-hover);
+}
+.courseCard:hover::before { transform: scaleX(1); }
+
+
+.completedBadge {
+  background: rgba(57, 211, 83, 0.15); color: var(--accent-green);
+  border: 1px solid rgba(57, 211, 83, 0.3);
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 0.75rem; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+}
+
+
+.cardTop { 
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border-muted);
+}
+.lessonCount { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center;}
+.courseTitle { font-size: 1.25rem; font-weight: 800; color: var(--text-primary); line-height: 1.2; letter-spacing: -0.01em; }
+.courseDesc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; flex: 1; }
+
+.progressSection {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
+}
+.progressBar {
+  height: 6px; background: var(--border-muted); border-radius: 3px; overflow: hidden;
+}
+.progressFill {
+  height: 100%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+  border-radius: 3px; transition: width 0.4s ease;
+}
+.progressComplete {
+  background: var(--accent-green);
+}
+.progressText {
+  font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-align: right;
+}
+
+.cardBottom { 
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 8px;
+}
+.tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.enrolled { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; font-weight: 600; display: flex; align-items: center;}
+
+.startBtn {
+  font-size: 0.9rem; font-weight: 700; color: var(--accent-green);
+  transition: all 0.3s ease;
+  transform: translateX(-10px); opacity: 0;
+}
+.courseCard:hover .startBtn { transform: translateX(0); opacity: 1; }
+
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+.skeletonGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+.skeletonCard {
+  height: 320px; border-radius: var(--radius-xl);
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%; animation: shimmer 2s infinite linear;
+}
+
+@media (max-width: 1100px) { .grid, .skeletonGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .grid, .skeletonGrid { grid-template-columns: 1fr; } .courseCard { padding: 24px; } }
+

@@ -1,0 +1,278 @@
+.terminalContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: #181818;
+  border-top: 1px solid #282828;
+  font-family: Menlo, Monaco, "Courier New", "JetBrains Mono", Consolas, monospace;
+  overflow: hidden;
+  color: #cccccc;
+}
+
+/* ── VS Code Integrated Terminal Header ── */
+.terminalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1f1f1f;
+  border-bottom: 1px solid #282828;
+  padding: 0 8px 0 12px;
+  height: 34px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.headerTabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+}
+
+.tabButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  border-top: 2px solid transparent;
+  color: #8c8c8c;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.tabButton:hover {
+  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tabButtonActive {
+  color: #ffffff;
+  border-top-color: #007acc;
+  background: #181818;
+}
+
+.badge {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: #333333;
+  color: #cccccc;
+  font-weight: 500;
+}
+
+.badgeError {
+  background: rgba(248, 81, 73, 0.25);
+  color: #f85149;
+}
+
+.badgeSuccess {
+  background: rgba(46, 160, 67, 0.25);
+  color: #3fb950;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.envTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: #252526;
+  border: 1px solid #333333;
+  border-radius: 4px;
+  color: #999999;
+  font-size: 0.68rem;
+  font-family: inherit;
+}
+
+.actionIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #8c8c8c;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.actionIconBtn:hover {
+  background: #2d2d2d;
+  color: #ffffff;
+}
+
+.stopBtn {
+  color: #f85149;
+}
+.stopBtn:hover {
+  background: rgba(248, 81, 73, 0.2);
+  color: #f85149;
+}
+
+/* ── Screen & Text Output ── */
+.screen {
+  flex: 1;
+  padding: 10px 14px;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  cursor: text;
+}
+
+.sysNotice {
+  color: #6e7681;
+  font-size: 0.74rem;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #232323;
+  line-height: 1.4;
+}
+
+.logFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.promptLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+.promptUser {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.promptSeparator {
+  color: #888888;
+}
+
+.promptDir {
+  color: #38bdf8;
+  font-weight: 500;
+}
+
+.promptSymbol {
+  color: #facc15;
+  font-weight: 700;
+}
+
+.promptCmd {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.stdoutText {
+  color: #d4d4d4;
+  white-space: pre-wrap;
+}
+
+.stderrText {
+  color: #f87171;
+  white-space: pre-wrap;
+}
+
+.userEcho {
+  color: #60a5fa;
+  font-weight: 500;
+  white-space: pre-wrap;
+}
+
+.systemStatusText {
+  color: #86efac;
+  font-size: 0.78rem;
+  margin: 4px 0;
+  font-weight: 500;
+}
+
+.runningBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #3fb950;
+  font-size: 0.65rem;
+  margin-left: 2px;
+}
+
+.runningDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3fb950;
+  animation: pulseDot 1.4s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.terminalActiveLine {
+  display: flex;
+  align-items: baseline;
+  min-height: 20px;
+  width: 100%;
+}
+
+.promptLineInline {
+  display: inline-flex;
+  align-items: baseline;
+  flex-shrink: 0;
+}
+
+.realTerminalInput {
+  flex: 1;
+  min-width: 40px;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  padding: 0;
+  margin: 0;
+  caret-color: #58a6ff;
+  -webkit-appearance: none;
+}
+
+.realTerminalInput:focus {
+  outline: none !important;
+  border: none !important;
+}
+
+.rawOutput {
+  margin: 0;
+  color: #d4d4d4;
+  font-family: inherit;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+

@@ -1,0 +1,20 @@
+# Render service manifest for deploying the combined frontend+backend
+# Do NOT include secrets here. Set environment variables in the Render dashboard.
+
+services:
+  - type: web
+    name: codecampus
+    env: node
+    branch: main
+    root: .
+    buildCommand: npm run build
+    startCommand: npm start
+    autoDeploy: true
+    # Example env var keys to set in the Render dashboard (do not commit values):
+    envVars:
+      - key: MONGO_URI
+      - key: REDIS_URL
+      - key: JWT_SECRET
+      - key: CLIENT_URL
+      - key: EMAIL_USER
+      - key: EMAIL_PASS

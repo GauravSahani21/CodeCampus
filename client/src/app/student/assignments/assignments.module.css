@@ -1,0 +1,188 @@
+.page {
+  min-height: calc(100vh - 60px);
+  padding: 32px 24px 60px 24px;
+  background-color: var(--bg-primary, #0d1117);
+  color: var(--text-primary, #e6edf3);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 28px;
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-size: 0.92rem;
+  color: #8b949e;
+}
+
+.filtersRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.filterBtn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid #30363d;
+  background: #161b22;
+  color: #8b949e;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filterBtnActive {
+  background: #38bdf8;
+  color: #000;
+  border-color: #38bdf8;
+}
+
+.assignmentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.assignmentCard {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  transition: border-color 0.15s;
+}
+
+.assignmentCard:hover {
+  border-color: #58a6ff;
+}
+
+.cardLeft {
+  flex: 1;
+  min-width: 300px;
+}
+
+.badgeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.statusBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.statusPending {
+  background: rgba(227, 179, 65, 0.15);
+  color: #e3b341;
+}
+
+.statusSubmitted {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.statusGraded {
+  background: rgba(57, 211, 83, 0.15);
+  color: #39d353;
+}
+
+.cardTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.cardDesc {
+  font-size: 0.85rem;
+  color: #8b949e;
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+
+.problemPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.problemPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  color: #58a6ff;
+  text-decoration: none;
+}
+
+.problemPill:hover {
+  border-color: #58a6ff;
+}
+
+.cardRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.scoreBox {
+  text-align: right;
+}
+
+.scoreValue {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #39d353;
+}
+
+.scoreLabel {
+  font-size: 0.72rem;
+  color: #8b949e;
+}
+
+/* Modal */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modalBox {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 650px;
+  padding: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
