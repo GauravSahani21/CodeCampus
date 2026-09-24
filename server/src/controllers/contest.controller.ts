@@ -124,7 +124,8 @@ export const getContestById = async (req: Request, res: Response): Promise<void>
     contestObj.problems = contestObj.problems.map((item: any) => {
       if (item.problemId) {
         if (item.problemId.testCases) {
-          item.problemId.exampleTestCases = item.problemId.testCases.filter((tc: any) => tc.isExample);
+          const visibleCases = item.problemId.testCases.filter((tc: any) => tc.isExample || !tc.isHidden);
+          item.problemId.exampleTestCases = visibleCases.length > 0 ? visibleCases : item.problemId.testCases.slice(0, 2);
           delete item.problemId.testCases; // Strip test cases with hidden answers
         }
         if (item.problemId.starterTemplates) {
@@ -212,8 +213,8 @@ export const runContestCode = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    if (contest.contestType !== 'superset' && !contest.allowCodeExecution) {
-      res.status(403).json({ error: 'Pre-submission code execution is not enabled for this standard contest.' });
+    if (contest.contestType !== 'superset' || contest.allowCodeExecution === false) {
+      res.status(403).json({ error: 'Pre-submission code execution is disabled for Standard Blank Editor contests.' });
       return;
     }
 
@@ -312,18 +313,11 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // Check if user already submitted solutions
+    // Existing submission check: we allow re-taking or updating solutions
     const existingSubmission = await ContestSubmission.findOne({
       contestId: contest._id,
       userId,
     });
-    if (existingSubmission) {
-      res.status(400).json({
-        error: 'You have already completed and submitted your solutions for this assessment.',
-        submissionId: existingSubmission._id,
-      });
-      return;
-    }
 
     let codingScore = 0;
     let maxCodingScore = 0;
@@ -452,24 +446,43 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
       ? await evaluateContestSubmission(evaluationInputs)
       : { summary: 'Assessment completed.', mistakes: [], conceptsToFocus: [], recommendedCourses: [], evaluatedAt: new Date() };
 
-    // Save submission
-    const submission = await ContestSubmission.create({
-      contestId: contest._id,
-      userId,
-      contestType: contest.contestType || 'standard',
-      problemSubmissions,
-      mcqSubmissions,
-      codingScore,
-      mcqScore,
-      totalScore,
-      maxScore,
-      percentage,
-      status: 'Completed',
-      aiReport,
-      proctoringData,
-      timeSpentSeconds,
-      submittedAt: new Date(),
-    });
+    // Save or update submission
+    let submission: any;
+    if (existingSubmission) {
+      existingSubmission.contestType = contest.contestType || 'standard';
+      existingSubmission.problemSubmissions = problemSubmissions;
+      existingSubmission.mcqSubmissions = mcqSubmissions;
+      existingSubmission.codingScore = codingScore;
+      existingSubmission.mcqScore = mcqScore;
+      existingSubmission.totalScore = totalScore;
+      existingSubmission.maxScore = maxScore;
+      existingSubmission.percentage = percentage;
+      existingSubmission.status = 'Completed';
+      existingSubmission.aiReport = aiReport;
+      existingSubmission.proctoringData = proctoringData as any;
+      existingSubmission.timeSpentSeconds = timeSpentSeconds;
+      existingSubmission.submittedAt = new Date();
+      await existingSubmission.save();
+      submission = existingSubmission;
+    } else {
+      submission = await ContestSubmission.create({
+        contestId: contest._id,
+        userId,
+        contestType: contest.contestType || 'standard',
+        problemSubmissions,
+        mcqSubmissions,
+        codingScore,
+        mcqScore,
+        totalScore,
+        maxScore,
+        percentage,
+        status: 'Completed',
+        aiReport,
+        proctoringData: proctoringData as any,
+        timeSpentSeconds,
+        submittedAt: new Date(),
+      });
+    }
 
     res.status(201).json({
       submissionId: submission._id,

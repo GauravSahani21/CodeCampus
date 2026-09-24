@@ -12,7 +12,7 @@ api.interceptors.request.use((config) => {
       : '/api');
 
   if (typeof window !== 'undefined') {
-    const token = sessionStorage.getItem('cf_token') || localStorage.getItem('cf_token');
+    const token = sessionStorage.getItem('cf_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

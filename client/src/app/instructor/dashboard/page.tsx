@@ -78,10 +78,6 @@ export default function InstructorDashboard() {
             <Trophy size={16} strokeWidth={2} />
             Create Contest
           </Link>
-          <Link href="/instructor/courses/create" className={styles.btnViolet}>
-            <BookOpen size={16} strokeWidth={2} />
-            Create Course
-          </Link>
         </div>
       </div>
 
@@ -119,20 +115,6 @@ export default function InstructorDashboard() {
           <div className={styles.statSub}>Proctored assessments active</div>
         </div>
 
-        {/* Metric 3: Courses */}
-        <div className={styles.statCard}>
-          <div className={styles.statHeader}>
-            <div className={`${styles.statIcon} ${styles.icon_violet}`}>
-              <BookOpen size={20} strokeWidth={2} />
-            </div>
-            <Link href="/instructor/courses" className={styles.viewAll} title="View All Courses">
-              <ArrowUpRight size={16} />
-            </Link>
-          </div>
-          <div className={styles.statValue}>{stats.totalCourses ?? 0}</div>
-          <div className={styles.statLabel}>Curriculum Courses</div>
-          <div className={styles.statSub}>Structured learning tracks</div>
-        </div>
 
         {/* Metric 4: AI & Submissions */}
         <div className={styles.statCard}>
@@ -349,16 +331,6 @@ export default function InstructorDashboard() {
                 <ChevronRight size={14} className={styles.studioArrow} />
               </Link>
 
-              <Link href="/instructor/courses/create" className={styles.studioItem}>
-                <div className={styles.studioIcon} style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#c084fc' }}>
-                  <BookOpen size={18} />
-                </div>
-                <div className={styles.studioText}>
-                  <div className={styles.studioTitle}>Curriculum Builder</div>
-                  <div className={styles.studioDesc}>Publish structured courses with code walkthroughs</div>
-                </div>
-                <ChevronRight size={14} className={styles.studioArrow} />
-              </Link>
             </div>
           </div>
 

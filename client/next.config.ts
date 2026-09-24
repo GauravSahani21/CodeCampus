@@ -6,8 +6,30 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**' },
     ],
   },
-  // Required for Next.js 16 Turbopack (enabled by default)
-  turbopack: {},
+  async redirects() {
+    return [
+      {
+        source: '/learn',
+        destination: '/problems',
+        permanent: false,
+      },
+      {
+        source: '/learn/:path*',
+        destination: '/problems',
+        permanent: false,
+      },
+      {
+        source: '/instructor/courses',
+        destination: '/instructor/problems',
+        permanent: false,
+      },
+      {
+        source: '/instructor/courses/:path*',
+        destination: '/instructor/problems',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import {
   Trophy, Sparkles, Clock, Search, ArrowRight,
-  User, Award, Layers, Plus, CheckCircle2
+  User, Layers, Plus, CheckCircle2
 } from 'lucide-react';
 import styles from './contests.module.css';
 
@@ -85,14 +85,11 @@ export default function ContestsPage() {
     <main className={styles.container}>
         {/* Hero Section */}
         <section className={styles.hero}>
-          <div className={styles.heroBadge}>
-            <Award size={14} /> Official Assessments & Contests
-          </div>
           <h1 className={styles.heroTitle}>
             Compete, Test Your Skills, <span className={styles.heroGrad}>Learn with AI</span>
           </h1>
           <p className={styles.heroSubtitle}>
-            Solve algorithm assessments in exam conditions using a focused plain editor. When submitted, our AI evaluates your mistakes in-depth and curates targeted courses to level up your mastery.
+            Solve algorithm assessments in exam conditions using a focused plain editor. When submitted, our AI evaluates your mistakes in-depth to diagnose failure test cases and level up your mastery.
           </p>
         </section>
 
@@ -184,7 +181,7 @@ export default function ContestsPage() {
                         </span>
                         {contest.contestType === 'superset' ? (
                           <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(88,166,255,0.15)', color: 'var(--accent-blue)', fontSize: '0.72rem', fontWeight: 600, border: '1px solid rgba(88,166,255,0.25)' }}>
-                            SuperSet Mode
+                            Interactive Mode
                           </span>
                         ) : (
                           <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -230,7 +227,7 @@ export default function ContestsPage() {
 
                     {contest.aiEvaluationEnabled && (
                       <div className={styles.aiFeatureBanner}>
-                        <Sparkles size={14} /> AI Mistake Analysis & Course Recommendations
+                        <Sparkles size={14} /> AI Mistake Analysis &amp; Algorithmic Diagnosis
                       </div>
                     )}
                   </div>

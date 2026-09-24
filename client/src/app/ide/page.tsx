@@ -32,15 +32,17 @@ import styles from './page.module.css';
 
 const CodeEditor = dynamic(() => import('@/components/Editor/CodeEditor'), { ssr: false });
 
-export interface WorkspaceFile {
+interface WorkspaceFile {
   id: string;
   name: string;
-  language: string;
   content: string;
-  iconColor: string;
+  language: string;
+  iconColor?: string;
+  isFolder?: boolean;
+  parentId?: string | null;
 }
 
-export function detectLanguage(filename: string): { language: string; color: string } {
+function detectLanguage(filename: string): { language: string; color: string } {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   switch (ext) {
     case 'py':
@@ -86,7 +88,7 @@ export function detectLanguage(filename: string): { language: string; color: str
   }
 }
 
-export function getDefaultContentForFile(filename: string, language: string): string {
+function getDefaultContentForFile(filename: string, language: string): string {
   if (language === 'python') {
     return `# ${filename}
 def main():

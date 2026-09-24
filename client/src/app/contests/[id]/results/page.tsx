@@ -110,7 +110,7 @@ export default function ContestResultsPage() {
             {contest?.title || 'Contest'} · Submitted on {new Date(submission.submittedAt).toLocaleDateString()}
             {submission.contestType === 'superset' && (
               <span style={{ marginLeft: '10px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(88,166,255,0.15)', color: 'var(--accent-blue)', fontSize: '0.75rem', fontWeight: 600 }}>
-                SuperSet Mode (Coding + MCQs)
+                Interactive Mode (Coding + MCQs)
               </span>
             )}
           </p>
@@ -336,50 +336,6 @@ export default function ContestResultsPage() {
           </section>
         )}
 
-        {/* Recommended Courses Section */}
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionTitle}>
-              <Compass size={20} style={{ color: 'var(--accent-green)' }} />
-              Personalized Course Recommendations
-            </div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Tailored based on your diagnosed algorithmic mistakes
-            </span>
-          </div>
-
-          {recommendedCourses.length > 0 ? (
-            <div className={styles.coursesGrid}>
-              {recommendedCourses.map((course: any, idx: number) => (
-                <div key={idx} className={styles.courseCard}>
-                  <div>
-                    <h3 className={styles.courseTitle}>{course.title}</h3>
-                    <p className={styles.courseDesc}>{course.description}</p>
-                    <div className={styles.courseReason}>
-                      <strong>Why this course:</strong> {course.reason}
-                    </div>
-                  </div>
-
-                  <div className={styles.courseMeta}>
-                    <div className={styles.courseStats}>
-                      {course.level && <span>{course.level}</span>}
-                      {course.lessonCount && <span>{course.lessonCount} Lessons</span>}
-                    </div>
-
-                    {/* service returns slug or courseSlug */}
-                    <Link href={`/learn/${course.slug || course.courseSlug}`} className={styles.startCourseBtn}>
-                      Start Learning <ArrowRight size={13} />
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
-              Explore the <Link href="/learn" style={{ color: 'var(--accent-green)', textDecoration: 'underline' }}>CodeCampus Learning Library</Link> for comprehensive courses and interview preparation paths.
-            </div>
-          )}
-        </section>
 
         {/* MCQ Assessment Review (if SuperSet / MCQs present) */}
         {submission.mcqSubmissions && submission.mcqSubmissions.length > 0 && (

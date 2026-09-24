@@ -178,7 +178,7 @@ export default function CreateProblemPage() {
   const handleSubmit = async () => {
     const token =
       typeof window !== 'undefined'
-        ? sessionStorage.getItem('cf_token') || localStorage.getItem('cf_token')
+        ? sessionStorage.getItem('cf_token')
         : null;
 
     if (!token) {

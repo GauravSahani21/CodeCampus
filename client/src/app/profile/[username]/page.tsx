@@ -7,7 +7,7 @@ import {
   CheckCircle2, Flame, Award, Code2, Trophy, Target,
   Star, Plus, ArrowUpRight, BarChart2, ShieldCheck,
   TrendingUp, ArrowRight, Zap, Check, Lock, Layers,
-  Terminal, Edit3, Activity as ActivityIcon
+  Terminal, Edit3, Activity as ActivityIcon, Swords
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -67,13 +67,23 @@ export default function ProfilePage() {
   const [dashboardTab, setDashboardTab] = useState<'instructor' | 'student'>('student');
 
   useEffect(() => {
+    if (!username) return;
+    setLoading(true);
     Promise.all([
       api.get(`/users/${username}`).then((r) => r.data),
-      api.get(`/users/${username}/activity`).then((r) => r.data),
+      api.get(`/users/${username}/activity`).then((r) => r.data).catch(() => []),
     ])
-      .then(([userData, actData]) => {
+      .then(([userData, actDataRaw]) => {
         setUser(userData);
-        if (userData.role === 'instructor' || userData.role === 'admin') {
+        const actData: Activity[] = Array.isArray(actDataRaw) ? actDataRaw : [];
+        const isCurrentOwner = Boolean(
+          currentUser?.username &&
+          userData?.username &&
+          currentUser.username.toLowerCase() === userData.username.toLowerCase()
+        );
+        const isInstructorUser = currentUser?.role === 'instructor' || currentUser?.role === 'admin';
+
+        if (isCurrentOwner && isInstructorUser) {
           setDashboardTab('instructor');
           api
             .get('/instructor/dashboard')
@@ -82,6 +92,8 @@ export default function ProfilePage() {
               if (res.data?.recentProblems) setRecentProblems(res.data.recentProblems);
             })
             .catch(() => {});
+        } else {
+          setDashboardTab('student');
         }
 
         // Calendar fallback
@@ -99,7 +111,7 @@ export default function ProfilePage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [username]);
+  }, [username, currentUser]);
 
   if (loading) {
     return (
@@ -111,15 +123,19 @@ export default function ProfilePage() {
 
   if (!user) return <div className={styles.notFound}>User not found</div>;
 
-  const acceptanceRate =
-    user.stats.attempted > 0 ? ((user.stats.solved / user.stats.attempted) * 100).toFixed(1) : '0';
+  const stats = user.stats || { solved: 0, attempted: 0, streak: 0 };
+  const solvedProblems = Array.isArray(user.solvedProblems) ? user.solvedProblems : [];
+  const badges = Array.isArray(user.badges) ? user.badges : [];
 
-  const easyCount = user.solvedProblems.filter((p) => p.difficulty?.toLowerCase() === 'easy').length;
-  const medCount = user.solvedProblems.filter(
+  const acceptanceRate =
+    stats.attempted > 0 ? ((stats.solved / stats.attempted) * 100).toFixed(1) : '0';
+
+  const easyCount = solvedProblems.filter((p) => p.difficulty?.toLowerCase() === 'easy').length;
+  const medCount = solvedProblems.filter(
     (p) => p.difficulty?.toLowerCase() === 'medium' || p.difficulty?.toLowerCase() === 'med.'
   ).length;
-  const hardCount = user.solvedProblems.filter((p) => p.difficulty?.toLowerCase() === 'hard').length;
-  const totalSolved = user.stats.solved || user.solvedProblems.length;
+  const hardCount = solvedProblems.filter((p) => p.difficulty?.toLowerCase() === 'hard').length;
+  const totalSolved = stats.solved || solvedProblems.length;
 
   // Developer proficiency tier calculations
   let skillLevel = 'Novice Coder';
@@ -143,7 +159,13 @@ export default function ProfilePage() {
     tierProgress = Math.min(100, Math.round((totalSolved / 5) * 100));
   }
 
-  const isInstructorOrAdmin = user.role === 'instructor' || user.role === 'admin';
+  const isOwner = Boolean(
+    currentUser?.username &&
+    user?.username &&
+    currentUser.username.toLowerCase() === user.username.toLowerCase()
+  );
+
+  const canManageInstructor = isOwner && (currentUser?.role === 'instructor' || currentUser?.role === 'admin');
 
   // LeetCode circular donut calculations
   const totalLibrary = 150;
@@ -187,6 +209,50 @@ export default function ProfilePage() {
                   Instructor
                 </span>
               ) : null}
+
+              {isOwner ? (
+                <Link
+                  href="/settings"
+                  style={{
+                    marginTop: 12,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    textDecoration: 'none',
+                    width: '100%',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Edit3 size={13} /> Edit Profile
+                </Link>
+              ) : (
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    width: '100%',
+                    justifyContent: 'center',
+                  }}
+                >
+                  Public Profile
+                </div>
+              )}
             </div>
 
             {/* Stats */}
@@ -199,7 +265,7 @@ export default function ProfilePage() {
               </div>
               <div className={styles.stat}>
                 <div className={styles.statVal} style={{ color: 'var(--accent-orange)' }}>
-                  {user.stats.streak}
+                  {stats.streak}
                 </div>
                 <div className={styles.statKey}>Day Streak</div>
               </div>
@@ -212,11 +278,11 @@ export default function ProfilePage() {
             </div>
 
             {/* Badges */}
-            {user.badges.length > 0 && (
+            {badges.length > 0 && (
               <div className={styles.badgesCard}>
                 <h3 className={styles.sectionTitle}>Badges</h3>
                 <div className={styles.badgeList}>
-                  {user.badges.map((b) => (
+                  {badges.map((b) => (
                     <div key={b} className={styles.badgeItem}>
                       {BADGE_LABELS[b] || b}
                     </div>
@@ -231,7 +297,7 @@ export default function ProfilePage() {
             {/* Activity Heatmap */}
             <div className={styles.heatmapCard}>
               <h2 className={styles.cardTitle}>
-                {user.stats.streak > 0 ? `${user.stats.streak} day streak` : 'Activity Graph'}
+                {stats.streak > 0 ? `${stats.streak} day streak` : 'Activity Graph'}
               </h2>
               {activity.length > 1 && (
                 <div className={styles.heatmap}>
@@ -252,23 +318,31 @@ export default function ProfilePage() {
                 </div>
               )}
               {activity.length <= 1 && (
-                <div className={styles.noActivity}>No activity yet — start solving!</div>
+                <div className={styles.noActivity}>
+                  {isOwner ? 'No activity yet — start solving!' : `No recent activity recorded for ${user.username}.`}
+                </div>
               )}
             </div>
 
             {/* Solved Problems */}
             <div className={styles.solvedCard}>
-              <h2 className={styles.cardTitle}>Solved Problems ({user.solvedProblems.length})</h2>
-              {user.solvedProblems.length === 0 ? (
+              <h2 className={styles.cardTitle}>Solved Problems ({solvedProblems.length})</h2>
+              {solvedProblems.length === 0 ? (
                 <div className={styles.noSolved}>
-                  No problems solved yet.{' '}
-                  <Link href="/problems" className={styles.link}>
-                    Start now <ArrowRight size={13} style={{ display: 'inline' }} />
-                  </Link>
+                  {isOwner ? (
+                    <>
+                      No problems solved yet.{' '}
+                      <Link href="/problems" className={styles.link}>
+                        Start now <ArrowRight size={13} style={{ display: 'inline' }} />
+                      </Link>
+                    </>
+                  ) : (
+                    <span>{user.username} has not solved any problems yet.</span>
+                  )}
                 </div>
               ) : (
                 <div className={styles.problemsList}>
-                  {user.solvedProblems.map((p) => (
+                  {solvedProblems.map((p) => (
                     <Link key={p._id} href={`/problems/${p.slug}`} className={styles.problemRow}>
                       <span className={styles.checkmark}>
                         <CheckCircle2 size={15} color="var(--accent-green)" />
@@ -294,20 +368,24 @@ export default function ProfilePage() {
                 <ActivityIcon size={12} /> Performance &amp; Analytics
               </span>
               <h2 className={styles.dashTitle}>
-                {isInstructorOrAdmin && dashboardTab === 'instructor'
+                {canManageInstructor && dashboardTab === 'instructor'
                   ? 'Instructor Command Center'
-                  : 'Coding Mastery & Performance Hub'}
+                  : isOwner
+                  ? 'Coding Mastery & Performance Hub'
+                  : `${user.username}'s Performance Hub`}
               </h2>
               <p className={styles.dashSubtitle}>
-                {isInstructorOrAdmin && dashboardTab === 'instructor'
+                {canManageInstructor && dashboardTab === 'instructor'
                   ? 'Author algorithmic challenges, launch proctored assessments, and monitor platform submission accuracy in real time.'
-                  : 'Track your algorithmic proficiency, consistency habits, and unlocked engineering milestones.'}
+                  : isOwner
+                  ? 'Track your algorithmic proficiency, consistency habits, and unlocked engineering milestones.'
+                  : `Review ${user.username}'s challenges solved, consistency streak, and developer achievements on CodeCampus.`}
               </p>
             </div>
 
             {/* Action Bar with ONLY SVG Icons (Zero Emojis) */}
             <div className={styles.dashActions}>
-              {isInstructorOrAdmin && (
+              {canManageInstructor && (
                 <div className={styles.tabSwitch}>
                   <button
                     type="button"
@@ -326,7 +404,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {isInstructorOrAdmin && dashboardTab === 'instructor' ? (
+              {canManageInstructor && dashboardTab === 'instructor' ? (
                 <>
                   <Link href="/instructor/problems/create" className={styles.actionPillPrimary}>
                     <Plus size={14} strokeWidth={2.5} /> Create Problem
@@ -338,7 +416,7 @@ export default function ProfilePage() {
                     Manage Problems
                   </Link>
                 </>
-              ) : (
+              ) : isOwner ? (
                 <>
                   <Link href="/problems" className={styles.actionPillPrimary}>
                     <Code2 size={14} strokeWidth={2.2} /> Solve Problems
@@ -350,12 +428,21 @@ export default function ProfilePage() {
                     <Trophy size={14} /> Contests
                   </Link>
                 </>
+              ) : (
+                <>
+                  <Link href="/problems" className={styles.actionPillPrimary}>
+                    <Code2 size={14} strokeWidth={2.2} /> Explore Problems
+                  </Link>
+                  <Link href="/versus" className={styles.actionPill}>
+                    <Swords size={14} /> Challenge in Versus
+                  </Link>
+                </>
               )}
             </div>
           </div>
 
           {/* ── VIEW 1: INSTRUCTOR COMMAND CENTER ── */}
-          {isInstructorOrAdmin && dashboardTab === 'instructor' && (
+          {canManageInstructor && dashboardTab === 'instructor' && (
             <>
               {/* Bento Grid */}
               <div className={styles.statsGrid4}>
@@ -434,7 +521,7 @@ export default function ProfilePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(recentProblems.length > 0 ? recentProblems : user.solvedProblems.slice(0, 5)).map((prob: any) => {
+                    {(recentProblems.length > 0 ? recentProblems : solvedProblems.slice(0, 5)).map((prob: any) => {
                       const diff = (prob.difficulty || 'Easy').toLowerCase();
                       const diffColor =
                         diff === 'hard' ? '#ff375f' : diff === 'medium' || diff === 'med.' ? '#ffa116' : '#00b8a3';
@@ -470,7 +557,7 @@ export default function ProfilePage() {
           )}
 
           {/* ── VIEW 2: SOLVER / STUDENT HUB ── */}
-          {(!isInstructorOrAdmin || dashboardTab === 'student') && (
+          {(!canManageInstructor || dashboardTab === 'student') && (
             <>
               {/* Top 4 Metrics Ribbon (Polished, Proper Pluralization, Lucide Icons) */}
               <div className={styles.statsGrid4}>
@@ -480,7 +567,7 @@ export default function ProfilePage() {
                   </div>
                   <div className={styles.statContent}>
                     <div className={styles.statValue}>
-                      {user.stats.streak} {user.stats.streak === 1 ? 'Day' : 'Days'}
+                      {stats.streak} {stats.streak === 1 ? 'Day' : 'Days'}
                     </div>
                     <div className={styles.statLabel}>Consistency Streak</div>
                     <div className={styles.statCaption}>Consecutive active days</div>
@@ -495,7 +582,7 @@ export default function ProfilePage() {
                     <div className={styles.statValue}>{totalSolved}</div>
                     <div className={styles.statLabel}>Challenges Completed</div>
                     <div className={styles.statCaption}>
-                      {user.stats.attempted || totalSolved} total submissions
+                      {stats.attempted || totalSolved} total submissions
                     </div>
                   </div>
                 </div>
@@ -747,29 +834,29 @@ export default function ProfilePage() {
                   {/* Badge 3: Consistency 7 */}
                   <div
                     className={`${styles.milestoneCardBox} ${
-                      user.stats.streak >= 7 ? styles.milestoneUnlocked : ''
+                      stats.streak >= 7 ? styles.milestoneUnlocked : ''
                     }`}
                   >
                     <div className={styles.milestoneCardTop}>
                       <div
                         className={`${styles.badgeIconSquare} ${
-                          user.stats.streak >= 7 ? styles.badgeSquareUnlocked : styles.badgeSquareLocked
+                          stats.streak >= 7 ? styles.badgeSquareUnlocked : styles.badgeSquareLocked
                         }`}
                       >
                         <Flame size={20} strokeWidth={2.2} />
                       </div>
                       <span
                         className={`${styles.statusTag} ${
-                          user.stats.streak >= 7 ? styles.tagUnlocked : styles.tagLocked
+                          stats.streak >= 7 ? styles.tagUnlocked : styles.tagLocked
                         }`}
                       >
-                        {user.stats.streak >= 7 ? (
+                        {stats.streak >= 7 ? (
                           <>
                             <Check size={11} strokeWidth={3} /> Unlocked
                           </>
                         ) : (
                           <>
-                            <Lock size={11} /> {user.stats.streak}/7 Days
+                            <Lock size={11} /> {stats.streak}/7 Days
                           </>
                         )}
                       </span>

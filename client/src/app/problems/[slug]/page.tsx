@@ -649,36 +649,6 @@ export default function ProblemSolvePage() {
                       </div>
                     )}
 
-                    {/* Personalized Targeted Course Recommendation */}
-                    {aiReview.recommendedCourse && (
-                      <div style={{
-                        marginTop: 18,
-                        padding: 16,
-                        borderRadius: 8,
-                        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(168, 85, 247, 0.08))',
-                        border: '1px solid rgba(56, 189, 248, 0.25)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                          <Sparkles size={15} color="#38bdf8" />
-                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            Recommended Practice Track
-                          </span>
-                        </div>
-                        <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>
-                          {aiReview.recommendedCourse.title}
-                        </h4>
-                        <p style={{ fontSize: '0.78rem', color: '#8b949e', margin: '0 0 12px', lineHeight: 1.5 }}>
-                          {aiReview.recommendedCourse.reason}
-                        </p>
-                        <Link
-                          href={`/learn/${aiReview.recommendedCourse.slug}`}
-                          className="btn btn-primary btn-sm"
-                          style={{ fontSize: '0.76rem', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                        >
-                          <BookOpen size={13} /> Continue Learning →
-                        </Link>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

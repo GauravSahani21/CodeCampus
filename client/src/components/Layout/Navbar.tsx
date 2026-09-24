@@ -17,6 +17,7 @@ import {
   Award,
   Bell,
   BookOpen,
+  LayoutDashboard,
 } from 'lucide-react';
 import api from '@/lib/api';
 import styles from './Navbar.module.css';
@@ -24,7 +25,6 @@ import styles from './Navbar.module.css';
 const NAV_LINKS = [
   { href: '/problems',    label: 'Problems',   icon: Code2 },
   { href: '/contests',    label: 'Contests',   icon: Award },
-  { href: '/learn',       label: 'Learn',      icon: BookOpen },
   { href: '/versus',      label: 'Versus',     icon: Swords },
   { href: '/ide',         label: 'IDE',        icon: Terminal },
   { href: '/leaderboard', label: 'Rankings',   icon: Trophy },
@@ -215,28 +215,50 @@ export default function Navbar() {
                       onClick={() => setDropdownOpen(false)}
                     >
                       <User size={15} />
-                      Profile & Dashboard
+                      My Profile
                     </Link>
 
-                  <Link
-                    href="/settings"
-                    className={styles.dropdownItem}
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    <Settings size={15} />
-                    Settings
-                  </Link>
+                    {user.role === 'user' && (
+                      <Link
+                        href="/student/dashboard"
+                        className={styles.dropdownItem}
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <LayoutDashboard size={15} color="var(--accent-green)" />
+                        Student Dashboard
+                      </Link>
+                    )}
 
-                  {user.role === 'admin' && (
+                    {(user.role === 'instructor' || user.role === 'admin') && (
+                      <Link
+                        href="/instructor/dashboard"
+                        className={styles.dropdownItem}
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <LayoutDashboard size={15} color="#38bdf8" />
+                        Instructor Dashboard
+                      </Link>
+                    )}
+
                     <Link
-                      href="/admin"
+                      href="/settings"
                       className={styles.dropdownItem}
                       onClick={() => setDropdownOpen(false)}
                     >
-                      <Settings size={15} color="var(--accent-orange)" />
-                      Admin Dashboard
+                      <Settings size={15} />
+                      Settings
                     </Link>
-                  )}
+
+                    {user.role === 'admin' && (
+                      <Link
+                        href="/admin"
+                        className={styles.dropdownItem}
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <Settings size={15} color="var(--accent-orange)" />
+                        Admin Dashboard
+                      </Link>
+                    )}
 
                   <div className={styles.dropdownDivider} />
 
@@ -300,9 +322,21 @@ export default function Navbar() {
                 </Link>
               )}
               <Link href={`/profile/${user.username}`} className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
-                <div className={styles.avatarSmall}>{user.username[0].toUpperCase()}</div>
-                Profile & Dashboard
+                <User size={16} />
+                My Profile
               </Link>
+              {user.role === 'user' && (
+                <Link href="/student/dashboard" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
+                  <LayoutDashboard size={16} color="var(--accent-green)" />
+                  Student Dashboard
+                </Link>
+              )}
+              {(user.role === 'instructor' || user.role === 'admin') && (
+                <Link href="/instructor/dashboard" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
+                  <LayoutDashboard size={16} color="#38bdf8" />
+                  Instructor Dashboard
+                </Link>
+              )}
               <Link href="/settings" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
                 <Settings size={16} />
                 Settings

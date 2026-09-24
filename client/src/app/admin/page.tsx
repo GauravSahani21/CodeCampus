@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 
-type AdminTab = 'overview' | 'problems' | 'add-problem' | 'contests' | 'courses' | 'approvals' | 'course-approvals' | 'instructor-apps' | 'reports' | 'system';
+type AdminTab = 'overview' | 'problems' | 'add-problem' | 'contests' | 'approvals' | 'instructor-apps' | 'reports' | 'system';
 
 interface InstructorApplication {
   _id: string;
@@ -371,14 +371,6 @@ export default function AdminPage() {
             </div>
           </button>
 
-          <button
-            className={`${styles.navItem} ${tab === 'courses' ? styles.navActive : ''}`}
-            onClick={() => setTab('courses')}
-          >
-            <div className={styles.navLabel}>
-              <BookOpen size={16} /> Courses ({courses.length})
-            </div>
-          </button>
 
           <button
             className={`${styles.navItem} ${tab === 'approvals' ? styles.navActive : ''}`}
@@ -406,31 +398,6 @@ export default function AdminPage() {
             </div>
           </button>
 
-          <button
-            className={`${styles.navItem} ${tab === 'course-approvals' ? styles.navActive : ''}`}
-            onClick={() => setTab('course-approvals')}
-          >
-            <div className={styles.navLabel} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <FileCheck size={16} /> Course Approvals
-              </span>
-              {courseApprovals.filter(c => c.approvalStatus === 'pending_approval').length > 0 && (
-                <span
-                  style={{
-                    background: '#f59e0b',
-                    color: '#000',
-                    fontSize: '0.68rem',
-                    fontWeight: 800,
-                    padding: '2px 7px',
-                    borderRadius: 9999,
-                    lineHeight: '1.2',
-                  }}
-                >
-                  {courseApprovals.filter(c => c.approvalStatus === 'pending_approval').length}
-                </span>
-              )}
-            </div>
-          </button>
 
           <button
             className={`${styles.navItem} ${tab === 'instructor-apps' ? styles.navActive : ''}`}
@@ -526,14 +493,6 @@ export default function AdminPage() {
                 <div className={styles.bentoSub}>Proctored exam rooms active</div>
               </div>
 
-              <div className={styles.bentoCard}>
-                <div className={styles.bentoIcon} style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#c084fc' }}>
-                  <BookOpen size={20} />
-                </div>
-                <div className={styles.bentoVal}>{courses.length}</div>
-                <div className={styles.bentoLabel}>Published Courses</div>
-                <div className={styles.bentoSub}>Structured interactive tracks</div>
-              </div>
 
               <div className={styles.bentoCard}>
                 <div className={styles.bentoIcon} style={{ background: 'rgba(57, 211, 83, 0.12)', color: '#39d353' }}>
@@ -857,76 +816,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ── 5. COURSES HUB ── */}
-        {tab === 'courses' && (
-          <div className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <h1 className={styles.sectionTitle}>
-                  <BookOpen size={24} style={{ color: '#c084fc' }} />
-                  Curriculum &amp; Courses Manager
-                </h1>
-                <div className={styles.sectionSubtitle}>
-                  Inspect all learning courses, lesson counts, and student enrollments.
-                </div>
-              </div>
-
-              <Link href="/instructor/courses/create" className="btn btn-primary btn-sm">
-                <Plus size={14} /> Create Course
-              </Link>
-            </div>
-
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Course Title</th>
-                    <th>Difficulty</th>
-                    <th>Lessons</th>
-                    <th>Enrolled</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {courses.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                        No courses available.
-                      </td>
-                    </tr>
-                  ) : (
-                    courses.map((c) => (
-                      <tr key={c._id}>
-                        <td>
-                          <div style={{ fontWeight: 700, color: '#fff' }}>{c.title}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>/{c.slug}</div>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent-green)' }}>
-                            {c.difficulty}
-                          </span>
-                        </td>
-                        <td style={{ color: '#c9d1d9' }}>{c.lessons?.length || 0} Lessons</td>
-                        <td style={{ color: '#c9d1d9', fontWeight: 600 }}>{c.enrolledCount || 0} Learners</td>
-                        <td>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: c.isPublished ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-                            {c.isPublished ? '● Published' : '○ Draft'}
-                          </span>
-                        </td>
-                        <td>
-                          <Link href={`/learn/${c.slug}`} style={{ color: 'var(--accent-green)', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            View Course <ArrowRight size={12} />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
         {/* ── 6. DELETION APPROVALS QUEUE ── */}
         {tab === 'approvals' && (
@@ -1175,124 +1064,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ── COURSE APPROVALS QUEUE ── */}
-        {tab === 'course-approvals' && (
-          <div className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <h1 className={styles.sectionTitle}>
-                  <FileCheck size={24} style={{ color: '#f59e0b' }} />
-                  Course Syllabus & Curriculum Approvals
-                </h1>
-                <div className={styles.sectionSubtitle}>
-                  Review course drafts and syllabi submitted by instructors before publishing them to the public catalog.
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Course Title</th>
-                    <th>Instructor</th>
-                    <th>Category &amp; Level</th>
-                    <th>Curriculum</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {courseApprovals.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                        No courses pending review in the approval queue.
-                      </td>
-                    </tr>
-                  ) : (
-                    courseApprovals.map((course) => (
-                      <tr key={course._id}>
-                        <td>
-                          <strong>{course.title}</strong>
-                          <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            /{course.slug} · {course.price === 0 ? 'FREE' : `$${course.price}`}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.84rem' }}>{course.createdBy?.username || 'Instructor'}</span>
-                          <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            {course.createdBy?.email}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="badge badge-blue" style={{ marginRight: 6 }}>{course.category}</span>
-                          <span className="badge badge-purple">{course.difficulty}</span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.82rem' }}>{course.lessons?.length || 0} Lessons</span>
-                        </td>
-                        <td>
-                          <span
-                            style={{
-                              background: course.approvalStatus === 'published' ? 'rgba(57, 211, 83, 0.12)' : course.approvalStatus === 'pending_approval' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(248, 81, 73, 0.12)',
-                              color: course.approvalStatus === 'published' ? '#39d353' : course.approvalStatus === 'pending_approval' ? '#f59e0b' : '#ff7b72',
-                              border: `1px solid ${course.approvalStatus === 'published' ? 'rgba(57, 211, 83, 0.3)' : course.approvalStatus === 'pending_approval' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(248, 81, 73, 0.3)'}`,
-                              padding: '2px 8px',
-                              borderRadius: 4,
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            {course.approvalStatus || 'published'}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button
-                              onClick={() => handleReviewCourse(course._id, 'published')}
-                              disabled={actionLoading === course._id || course.approvalStatus === 'published'}
-                              style={{
-                                background: '#238636',
-                                color: '#fff',
-                                border: 'none',
-                                padding: '4px 10px',
-                                borderRadius: 4,
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                              }}
-                            >
-                              <Check size={12} /> Approve &amp; Publish
-                            </button>
-                            <button
-                              onClick={() => handleReviewCourse(course._id, 'rejected')}
-                              disabled={actionLoading === course._id}
-                              style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                color: 'var(--text-secondary)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                                fontSize: '0.75rem',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <X size={12} /> Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
         {/* ── INSTRUCTOR APPLICATIONS QUEUE ── */}
         {tab === 'instructor-apps' && (

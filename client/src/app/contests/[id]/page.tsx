@@ -2,16 +2,37 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 import api from '@/lib/api';
+import LanguageSelector from '@/components/Editor/LanguageSelector';
+import VsCodeTerminal from '@/components/Editor/VsCodeTerminal';
+import FileLanguageIcon from '@/components/Editor/FileLanguageIcon';
 import {
   Trophy, Clock, Send, ShieldAlert, ShieldCheck, Shield,
   Sparkles, AlertCircle, FileCode, CheckCircle2, ChevronRight,
   ArrowLeft, Loader2, Maximize, Minimize, AlertTriangle,
   EyeOff, Copy, ClipboardX, Info, Bell, Lock, X, Play,
   ChevronUp, ChevronDown, ListChecks, HelpCircle, Check,
-  RotateCcw, Bookmark, Terminal, Code2, CheckSquare
+  RotateCcw, Bookmark, Terminal, Code2, CheckSquare,
+  FileText, GitBranch, Terminal as TerminalIcon
 } from 'lucide-react';
 import styles from './exam.module.css';
+
+const CodeEditor = dynamic(() => import('@/components/Editor/CodeEditor'), { ssr: false });
+
+const LANG_FILE_MAP: Record<string, string> = {
+  python: 'Solution.py',
+  javascript: 'solution.js',
+  typescript: 'solution.ts',
+  cpp: 'Solution.cpp',
+  c: 'solution.c',
+  java: 'Solution.java',
+  go: 'main.go',
+  csharp: 'Solution.cs',
+};
 
 interface ContestProblem {
   problemId: {
@@ -20,6 +41,7 @@ interface ContestProblem {
     slug: string;
     difficulty: 'Easy' | 'Medium' | 'Hard';
     description: string;
+    tags?: string[];
     inputFormat?: string;
     outputFormat?: string;
     constraints?: string;
@@ -174,6 +196,18 @@ export default function ContestExamPage() {
   // SuperSet Code Execution states
   const [runningCode, setRunningCode] = useState(false);
   const [testConsoleOpen, setTestConsoleOpen] = useState(false);
+  const [isConsoleOpen, setIsConsoleOpen] = useState(true);
+  const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
+  const [terminalOutput, setTerminalOutput] = useState<{
+    stdout?: string;
+    stderr?: string;
+    exitCode?: number;
+    runtime?: number;
+    status?: string;
+    testResults?: any[];
+    passedCount?: number;
+    totalCount?: number;
+  } | null>(null);
   const [testResults, setTestResults] = useState<any[]>([]);
   const [activeCaseTab, setActiveCaseTab] = useState<number>(0);
   const [runError, setRunError] = useState<string | null>(null);
@@ -281,7 +315,8 @@ export default function ContestExamPage() {
         // Initialize solutions
         const initialSols: Record<string, { code: string; language: string }> = {};
         data.problems?.forEach((p: ContestProblem) => {
-          const prob = p.problemId;
+          const prob = p?.problemId;
+          if (!prob || !prob._id) return;
           const defaultLang = 'python';
           const starterCode = cleanClientTemplate(
             defaultLang,
@@ -511,6 +546,9 @@ export default function ContestExamPage() {
   const currentPoints = contest?.problems?.[selectedProblemIdx]?.points || 100;
   const currentSol = currentProb ? solutions[currentProb._id] : null;
 
+  const isInteractiveMode = contest?.contestType === 'superset';
+  const canRunCode = isInteractiveMode && contest?.allowCodeExecution !== false;
+
   const handleCodeChange = (newCode: string) => {
     if (!currentProb) return;
     setSolutions((prev) => {
@@ -558,6 +596,7 @@ export default function ContestExamPage() {
         },
       };
     });
+    setTerminalOutput(null);
   };
 
   // Plain Editor: Intercept Tab key to indent with 4 spaces
@@ -578,30 +617,70 @@ export default function ContestExamPage() {
     }
   };
 
-  // SuperSet: Run Code against example test cases or custom input
-  const handleRunCode = async () => {
-    if (!contest || !currentProb) return;
+  // Interactive Mode: Run Code against example test cases or custom input
+  const handleRunCode = async (overrideStdin?: string) => {
+    if (!canRunCode || !contest || !currentProb) return;
     try {
       setRunningCode(true);
+      setIsConsoleOpen(true);
       setTestConsoleOpen(true);
       setRunError(null);
+
+      const effectiveCustomInput = typeof overrideStdin === 'string'
+        ? overrideStdin
+        : (activeTestMode === 'custom' ? customInput : undefined);
 
       const res = await api.post(`/contests/${contestId}/run`, {
         problemId: currentProb._id,
         language: currentSol?.language || 'python',
         code: currentSol?.code || '',
-        customInput: activeTestMode === 'custom' ? customInput : undefined,
+        customInput: effectiveCustomInput,
       });
 
       if (res.data.custom) {
         setCustomResult(res.data);
+        setTerminalOutput({
+          stdout: res.data.output || '',
+          stderr: res.data.error || '',
+          exitCode: res.data.exitCode ?? (res.data.error ? 1 : 0),
+          runtime: res.data.executionTimeMs,
+          status: res.data.exitCode === 0 && !res.data.error ? 'Success' : 'Error',
+        });
       } else {
-        setTestResults(res.data.testResults || []);
+        const tests = res.data.testResults || [];
+        setTestResults(tests);
         setActiveCaseTab(0);
+        const passedCount = tests.filter((t: any) => t.passed).length;
+        const firstErr = tests.find((t: any) => t.error)?.error;
+        setTerminalOutput({
+          stdout: res.data.allPassed
+            ? `✓ All ${tests.length} example test cases passed!`
+            : `Testing completed: ${passedCount}/${tests.length} test cases passed.`,
+          stderr: firstErr || '',
+          exitCode: res.data.allPassed ? 0 : 1,
+          status: res.data.allPassed ? 'Accepted' : 'Wrong Answer',
+          passedCount,
+          totalCount: tests.length,
+          testResults: tests.map((t: any) => ({
+            input: t.input,
+            expectedOutput: t.expectedOutput,
+            actualOutput: t.actualOutput,
+            passed: t.passed,
+            status: t.passed ? 'Passed' : (t.error ? 'Runtime Error' : 'Wrong Answer'),
+          })),
+        });
       }
     } catch (err: any) {
       console.error('Failed to run code:', err);
-      setRunError(err.response?.data?.error || 'Failed to execute code');
+      const msg = err.response?.data?.error || 'Failed to execute code';
+      setRunError(msg);
+      setTerminalOutput({
+        stdout: '',
+        stderr: msg,
+        exitCode: 1,
+        status: 'Error',
+      });
+      showToast(msg);
     } finally {
       setRunningCode(false);
     }
@@ -855,6 +934,26 @@ export default function ContestExamPage() {
               <Sparkles size={16} /> View AI Performance &amp; Recommendations
             </Link>
 
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setExistingSubmission(null);
+                setHasStartedExam(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              <RotateCcw size={15} /> Retake Assessment
+            </button>
+
             <Link
               href="/contests"
               className="btn btn-secondary"
@@ -932,7 +1031,7 @@ export default function ContestExamPage() {
               <div className={styles.ruleItem}>
                 <Sparkles size={18} style={{ color: 'var(--accent-blue)' }} className={styles.ruleIcon} />
                 <div>
-                  <strong>AI Diagnostic Evaluation:</strong> Upon submission, AI will evaluate your algorithms, diagnose logical flaws, and curate targeted courses.
+                  <strong>AI Diagnostic Evaluation:</strong> Upon submission, AI will evaluate your algorithms and diagnose logical flaws and runtime bottlenecks.
                 </div>
               </div>
             </div>
@@ -1066,31 +1165,11 @@ export default function ContestExamPage() {
             <ArrowLeft size={18} />
           </Link>
           <div className={styles.contestPill}>
-            <Trophy size={13} /> {contest.contestType === 'superset' ? 'SuperSet Exam' : 'Assessment'}
+            <Trophy size={13} /> {contest.contestType === 'superset' ? 'Interactive Exam' : 'Assessment'}
           </div>
           <h1 className={styles.contestTitle} title={contest.title}>
             {contest.title}
           </h1>
-
-          {/* Section Switcher for SuperSet mode */}
-          {contest.contestType === 'superset' && contest.mcqQuestions && contest.mcqQuestions.length > 0 && (
-            <div className={styles.sectionTabs}>
-              <button
-                type="button"
-                className={`${styles.sectionTab} ${activeSection === 'coding' ? styles.sectionTabActive : ''}`}
-                onClick={() => setActiveSection('coding')}
-              >
-                <FileCode size={13} /> Coding <span className={styles.badgeCount}>{contest.problems.length}</span>
-              </button>
-              <button
-                type="button"
-                className={`${styles.sectionTab} ${activeSection === 'mcq' ? styles.sectionTabActiveBlue : ''}`}
-                onClick={() => setActiveSection('mcq')}
-              >
-                <ListChecks size={13} /> MCQs <span className={styles.badgeCount}>{contest.mcqQuestions.length}</span>
-              </button>
-            </div>
-          )}
         </div>
 
         <div className={styles.navCenter}>
@@ -1158,6 +1237,24 @@ export default function ContestExamPage() {
         <div className={styles.mcqAssessmentLayout}>
           {/* Main Question Pane */}
           <section className={styles.mcqMainPane}>
+            {contest.contestType === 'superset' && contest.mcqQuestions && contest.mcqQuestions.length > 0 && (
+              <div className={styles.leftSidebarSectionTabs} style={{ marginBottom: '16px', borderRadius: '8px', border: '1px solid #30363d' }}>
+                <button
+                  type="button"
+                  className={`${styles.sectionTab} ${(activeSection as string) === 'coding' ? styles.sectionTabActive : ''}`}
+                  onClick={() => setActiveSection('coding')}
+                >
+                  <FileCode size={13} /> Coding <span className={styles.badgeCount}>{contest.problems.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.sectionTab} ${(activeSection as string) === 'mcq' ? styles.sectionTabActiveBlue : ''}`}
+                  onClick={() => setActiveSection('mcq')}
+                >
+                  <ListChecks size={13} /> MCQs <span className={styles.badgeCount}>{contest.mcqQuestions.length}</span>
+                </button>
+              </div>
+            )}
             {(() => {
               const currentQ = contest.mcqQuestions[currentMcqIdx] || contest.mcqQuestions[0];
               const letters = ['A', 'B', 'C', 'D'];
@@ -1284,11 +1381,342 @@ export default function ContestExamPage() {
             </div>
           </aside>
         </div>
+      ) : isInteractiveMode ? (
+        /* Interactive Coding Exam Body (VS Code & Integrated Terminal layout) */
+        <Group orientation="horizontal" className={styles.splitLayout}>
+          {/* LEFT PANEL: Problem Details & Examples */}
+          <Panel defaultSize={45} minSize={25} className={styles.leftPanel}>
+            {/* Section Switcher in Left Sidebar */}
+            {contest.contestType === 'superset' && contest.mcqQuestions && contest.mcqQuestions.length > 0 && (
+              <div className={styles.leftSidebarSectionTabs}>
+                <button
+                  type="button"
+                  className={`${styles.sectionTab} ${activeSection === 'coding' ? styles.sectionTabActive : ''}`}
+                  onClick={() => setActiveSection('coding')}
+                >
+                  <FileCode size={13} /> Coding <span className={styles.badgeCount}>{contest.problems.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.sectionTab} ${activeSection === 'mcq' ? styles.sectionTabActiveBlue : ''}`}
+                  onClick={() => setActiveSection('mcq')}
+                >
+                  <ListChecks size={13} /> MCQs <span className={styles.badgeCount}>{contest.mcqQuestions.length}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Problem Navigation Tabs across top of left panel */}
+            <div className={styles.problemTabs}>
+              {contest.problems.map((p, idx) => (
+                <button
+                  key={p.problemId?._id || idx}
+                  className={`${styles.probTab} ${selectedProblemIdx === idx ? styles.probTabActive : ''}`}
+                  onClick={() => setSelectedProblemIdx(idx)}
+                >
+                  <span>Q{idx + 1}. {p.problemId?.title || `Problem ${idx + 1}`}</span>
+                  <span className={styles.pointsPill}>({p.points} pts)</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Sub-tab header */}
+            <div className={styles.leftTabs}>
+              <div className={`${styles.leftTab} ${styles.activeTab}`}>
+                <FileText size={14} /> Description
+              </div>
+            </div>
+
+            <div className={`${styles.leftContent} ${styles.unselectable}`} data-lenis-prevent="true">
+              {currentProb ? (
+                <>
+                  <div className={styles.problemHeader}>
+                    <h1 className={styles.title}>{currentProb.title}</h1>
+                  </div>
+
+                  <div className={styles.badges}>
+                    <span
+                      className={`${styles.badge} ${
+                        currentProb.difficulty === 'Easy'
+                          ? styles.badgeEasy
+                          : currentProb.difficulty === 'Medium'
+                          ? styles.badgeMedium
+                          : styles.badgeHard
+                      }`}
+                    >
+                      {currentProb.difficulty}
+                    </span>
+                    {currentProb.tags && currentProb.tags.length > 0 ? (
+                      currentProb.tags.map((t) => (
+                        <span key={t} className={styles.badgeTopic}>{t}</span>
+                      ))
+                    ) : (
+                      <>
+                        <span className={styles.badgeTopic}>Algorithms</span>
+                        <span className={styles.badgeTopic}>Data Structures</span>
+                      </>
+                    )}
+                    <span className={styles.pointsPill}>{currentPoints} Points</span>
+                  </div>
+
+                  <div className={styles.markdownBody}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {currentProb.description}
+                    </ReactMarkdown>
+                  </div>
+
+                  {currentProb.inputFormat && (
+                    <div style={{ marginTop: '16px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f0f6fc', marginBottom: '6px' }}>
+                        Input Format
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#c9d1d9' }}>{currentProb.inputFormat}</div>
+                    </div>
+                  )}
+
+                  {currentProb.outputFormat && (
+                    <div style={{ marginTop: '14px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f0f6fc', marginBottom: '6px' }}>
+                        Output Format
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#c9d1d9' }}>{currentProb.outputFormat}</div>
+                    </div>
+                  )}
+
+                  {/* Example Test Cases */}
+                  {currentProb.exampleTestCases && currentProb.exampleTestCases.length > 0 && (
+                    <div style={{ marginTop: '20px' }}>
+                      {currentProb.exampleTestCases.map((ex, i) => (
+                        <div key={i} className={styles.exampleCard}>
+                          <div className={styles.exampleTitle}>Example {i + 1}:</div>
+                          <div className={styles.exampleBody}>
+                            <div>
+                              <strong>Input:</strong> <code>{ex.input}</code>
+                            </div>
+                            <div>
+                              <strong>Output:</strong> <code>{ex.expectedOutput}</code>
+                            </div>
+                            {ex.explanation && (
+                              <div style={{ marginTop: '4px', fontSize: '0.8rem', color: '#8b949e' }}>
+                                <strong>Explanation:</strong> {ex.explanation}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Constraints */}
+                  {currentProb.constraints && (
+                    <div className={styles.constraintsSection}>
+                      <div className={styles.constraintsTitle}>Constraints:</div>
+                      <ul className={styles.constraintsList}>
+                        {currentProb.constraints
+                          .split('\n')
+                          .filter((c) => c.trim().length > 0)
+                          .map((c, i) => (
+                            <li key={i}>{c.replace(/^-\s*/, '')}</li>
+                          ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ color: 'var(--text-muted)', padding: '20px' }}>
+                  No problem details available.
+                </div>
+              )}
+            </div>
+          </Panel>
+
+          <Separator className={styles.resizeHandle} />
+
+          {/* RIGHT PANEL - VS Code Editor & Integrated Terminal */}
+          <Panel defaultSize={55} minSize={30} className={styles.rightPanel}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
+              {/* VS Code Tabs Bar */}
+              <div className={styles.tabsBar}>
+                <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                  <div className={styles.tabItem}>
+                    <FileLanguageIcon
+                      language={currentSol?.language || 'python'}
+                      filename={LANG_FILE_MAP[currentSol?.language || 'python'] || 'Solution'}
+                      size={14}
+                    />
+                    <span>{LANG_FILE_MAP[currentSol?.language || 'python'] || 'Solution'}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 8 }}>
+                  <LanguageSelector
+                    value={currentSol?.language || 'python'}
+                    onChange={handleLanguageChange}
+                  />
+
+                  <button
+                    className={styles.headerIconBtn}
+                    title="Reset to starter template"
+                    onClick={() => {
+                      if (!currentProb) return;
+                      const lang = currentSol?.language || 'python';
+                      const rawTemplate = currentProb.starterTemplates?.[lang] || DEFAULT_TEMPLATES[lang] || '';
+                      handleCodeChange(cleanClientTemplate(lang, rawTemplate));
+                      showToast('Code reset to default starter template');
+                    }}
+                  >
+                    <RotateCcw size={13} />
+                  </button>
+
+                  <button
+                    className={styles.headerIconBtn}
+                    title="Toggle Integrated Terminal"
+                    onClick={() => setIsConsoleOpen((prev) => !prev)}
+                    style={isConsoleOpen ? { color: '#38bdf8' } : undefined}
+                  >
+                    <TerminalIcon size={13} />
+                  </button>
+
+                  <button
+                    className={styles.runButton}
+                    onClick={() => handleRunCode()}
+                    disabled={runningCode}
+                    title="Run code against test cases"
+                  >
+                    {runningCode ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} fill="currentColor" />}
+                    <span>{runningCode ? 'Running...' : 'Run'}</span>
+                  </button>
+
+                  <button
+                    className={styles.submitButton}
+                    onClick={() => setConfirmModalOpen(true)}
+                    title="Submit Contest Assessment"
+                  >
+                    <Send size={12} />
+                    <span>Submit</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Breadcrumbs Bar */}
+              <div className={styles.breadcrumbsBar}>
+                <span className={styles.breadcrumbItem}>contests</span>
+                <span>›</span>
+                <span className={styles.breadcrumbItem}>{contest.slug}</span>
+                <span>›</span>
+                <span className={styles.breadcrumbItem}>{currentProb?.slug || 'problem'}</span>
+                <span>›</span>
+                <span className={`${styles.breadcrumbItem} ${styles.breadcrumbActive}`}>
+                  <FileLanguageIcon
+                    language={currentSol?.language || 'python'}
+                    filename={LANG_FILE_MAP[currentSol?.language || 'python'] || 'Solution'}
+                    size={12}
+                  />
+                  {LANG_FILE_MAP[currentSol?.language || 'python'] || 'Solution'}
+                </span>
+              </div>
+
+              {/* Resizable Vertical Editor & Terminal */}
+              <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                {isConsoleOpen ? (
+                  <Group orientation="vertical" style={{ height: '100%', width: '100%' }}>
+                    <Panel defaultSize={55} minSize={25} style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div className={styles.editorContainer}>
+                        <CodeEditor
+                          value={currentSol?.code || ''}
+                          onChange={(val) => handleCodeChange(val)}
+                          language={currentSol?.language || 'python'}
+                          height="100%"
+                          onCursorChange={(line, col) => setCursorPos({ line, col })}
+                        />
+                      </div>
+                    </Panel>
+
+                    <Separator className={styles.resizeHandleHorizontal} />
+
+                    <Panel defaultSize={45} minSize={20} style={{ display: 'flex', flexDirection: 'column' }}>
+                      <VsCodeTerminal
+                        language={currentSol?.language || 'python'}
+                        isRunning={runningCode}
+                        output={terminalOutput}
+                        onSendInput={(stdinVal) => handleRunCode(stdinVal)}
+                        onClear={() => setTerminalOutput(null)}
+                        onClose={() => setIsConsoleOpen(false)}
+                        onRestart={() => handleRunCode()}
+                      />
+                    </Panel>
+                  </Group>
+                ) : (
+                  <div className={styles.editorContainer}>
+                    <CodeEditor
+                      value={currentSol?.code || ''}
+                      onChange={(val) => handleCodeChange(val)}
+                      language={currentSol?.language || 'python'}
+                      height="100%"
+                      onCursorChange={(line, col) => setCursorPos({ line, col })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* VS Code Bottom Status Bar */}
+              <div className={styles.statusBar}>
+                <div className={styles.statusLeft}>
+                  <div className={styles.statusItem}>
+                    <GitBranch size={11} />
+                    <span>main*</span>
+                  </div>
+                  <div className={styles.statusItem}>
+                    <AlertCircle size={11} />
+                    <span>0</span>
+                  </div>
+                  <div
+                    className={`${styles.statusItem} ${styles.statusItemInteractive}`}
+                    onClick={() => setIsConsoleOpen((prev) => !prev)}
+                  >
+                    <TerminalIcon size={11} />
+                    <span>Terminal</span>
+                  </div>
+                </div>
+
+                <div className={styles.statusRight}>
+                  <span className={styles.statusItem}>
+                    Ln {cursorPos.line}, Col {cursorPos.col}
+                  </span>
+                  <span className={styles.statusItem}>Spaces: 4</span>
+                  <span className={styles.statusItem}>UTF-8</span>
+                  <span className={styles.statusItem} style={{ textTransform: 'uppercase', fontWeight: 600 }}>
+                    {currentSol?.language || 'PYTHON'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Panel>
+        </Group>
       ) : (
         /* Regular Split Coding Exam Body */
         <div className={styles.examBody}>
           {/* Left Pane: Problem Description (Non-selectable to prevent cheating) */}
           <section className={styles.problemPane}>
+            {contest.contestType === 'superset' && contest.mcqQuestions && contest.mcqQuestions.length > 0 && (
+              <div className={styles.leftSidebarSectionTabs}>
+                <button
+                  type="button"
+                  className={`${styles.sectionTab} ${activeSection === 'coding' ? styles.sectionTabActive : ''}`}
+                  onClick={() => setActiveSection('coding')}
+                >
+                  <FileCode size={13} /> Coding <span className={styles.badgeCount}>{contest.problems.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.sectionTab} ${activeSection === 'mcq' ? styles.sectionTabActiveBlue : ''}`}
+                  onClick={() => setActiveSection('mcq')}
+                >
+                  <ListChecks size={13} /> MCQs <span className={styles.badgeCount}>{contest.mcqQuestions.length}</span>
+                </button>
+              </div>
+            )}
+
             {/* Problem Tabs */}
             <div className={styles.problemTabs}>
               {contest.problems.map((p, idx) => (
@@ -1401,12 +1829,12 @@ export default function ContestExamPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {/* Run Code Button in SuperSet mode */}
-                {(contest.contestType === 'superset' || contest.allowCodeExecution) && (
+                {/* Run Code Button (Interactive Mode Only) */}
+                {canRunCode && (
                   <button
                     type="button"
                     className={styles.runBtn}
-                    onClick={handleRunCode}
+                    onClick={() => handleRunCode()}
                     disabled={runningCode}
                     title="Run solution against sample test cases"
                   >
@@ -1470,8 +1898,8 @@ export default function ContestExamPage() {
               />
             </div>
 
-            {/* Test Runner Console (SuperSet Mode) */}
-            {(contest.contestType === 'superset' || contest.allowCodeExecution) && (
+            {/* Test Runner Console (Interactive Mode Only) */}
+            {canRunCode && (
               <div className={`${styles.testConsoleDrawer} ${!testConsoleOpen ? styles.testConsoleDrawerClosed : ''}`}>
                 <div className={styles.testConsoleBar} onClick={() => setTestConsoleOpen((prev) => !prev)}>
                   <div className={styles.testConsoleTitle}>
@@ -1614,7 +2042,7 @@ export default function ContestExamPage() {
                 <Trophy size={36} style={{ color: 'var(--accent-green)', margin: '0 auto 12px' }} />
                 <h3 className={styles.modalTitle}>Submit Contest Solution?</h3>
                 <p className={styles.modalDesc}>
-                  Are you ready to finalize and submit your solutions? Your code will be evaluated against test cases, scored, and analyzed by AI for personalized course recommendations.
+                  Are you ready to finalize and submit your solutions? Your code will be evaluated against test cases, scored, and analyzed by AI for algorithmic feedback.
                 </p>
 
                 {/* Question Completion Summary */}
@@ -1718,7 +2146,7 @@ export default function ContestExamPage() {
                     ) : (
                       <div style={{ width: 16 }} />
                     )}
-                    <span>3. Curating personalized courses to focus on</span>
+                    <span>3. Curating algorithmic diagnosis and feedback</span>
                   </div>
                 </div>
               </>

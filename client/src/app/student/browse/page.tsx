@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 export default function StudentBrowseRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/learn');
+    router.replace('/problems');
   }, [router]);
 
   return (

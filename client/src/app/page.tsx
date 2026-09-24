@@ -5,7 +5,7 @@ import {
   Zap, Cpu, Activity, Trophy, Swords, Terminal,
   Code2, Users, CheckCircle2, Play, Shield, Sparkles,
   Layers, HelpCircle, ArrowRight, Check, Compass,
-  BookOpen, Eye, Flame, Award, ChevronRight
+  BookOpen, Eye, Flame, ChevronRight
 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -61,7 +61,7 @@ function twoSum(nums: number[], target: number): number[] {
 const STATS = [
   { value: '150+',  label: 'Curated Problems', sub: 'From Easy to Hard DSA' },
   { value: '13+',   label: 'Language Compilers', sub: 'Instant Piston Execution' },
-  { value: '2 Modes', label: 'Assessment Types', sub: 'Standard & SuperSet Exams' },
+  { value: '2 Modes', label: 'Assessment Types', sub: 'Standard & Interactive Exams' },
   { value: '100%',  label: 'AI-Proctored Security', sub: 'Incident Telemetry & Audit' },
 ];
 
@@ -91,16 +91,6 @@ export default function HomePage() {
       {/* ─── Hero Section ────────────────────────────── */}
       <section className={styles.hero}>
         <div className={`container ${styles.heroContent}`}>
-          <div className={styles.heroBadgeRow}>
-            <div className={styles.heroPill}>
-              <Sparkles size={13} className={styles.sparkleIcon} />
-              <span>Next-Gen Developer Learning &amp; Assessment Platform</span>
-            </div>
-            <div className={styles.heroModePill}>
-              <Award size={12} />
-              <span>SuperSet-Style Exams Live</span>
-            </div>
-          </div>
 
           <h1 className={styles.heroTitle}>
             Code with Precision.<br />
@@ -110,7 +100,7 @@ export default function HomePage() {
           <p className={styles.heroSub}>
             The high-performance platform for developers mastering algorithms. Practice in a 
             lightning-fast 13+ language cloud IDE, challenge peers in real-time 1v1 duels, 
-            and take <strong>SuperSet-style proctored exams</strong> with automated AI mistake diagnosis.
+            and take <strong>interactive proctored exams</strong> with automated AI mistake diagnosis.
           </p>
 
           <div className={styles.heroActions}>
@@ -133,7 +123,7 @@ export default function HomePage() {
                 <Trophy size={15} />
               </div>
               <span>
-                <strong>Dual-Mode Contests:</strong> Blank Editor or SuperSet Exam with Code Execution &amp; MCQs
+                <strong>Dual-Mode Contests:</strong> Blank Editor or Interactive Exam with Code Execution &amp; MCQs
               </span>
               <span className={styles.stripArrow}>→</span>
             </Link>
@@ -148,12 +138,12 @@ export default function HomePage() {
               <span className={styles.stripArrow}>→</span>
             </Link>
 
-            <Link href="/learn" className={styles.featureStrip}>
+            <Link href="/contests" className={styles.featureStrip}>
               <div className={styles.stripIconWrap} style={{ color: 'var(--accent-purple)', background: 'rgba(188,140,255,0.1)' }}>
-                <Compass size={15} />
+                <Trophy size={15} />
               </div>
               <span>
-                <strong>AI Diagnostics:</strong> Personalized mistake analysis &amp; targeted course recommendations
+                <strong>Contest Arena:</strong> Timed competitive programming exams with automated proctoring
               </span>
               <span className={styles.stripArrow}>→</span>
             </Link>
@@ -262,7 +252,7 @@ export default function HomePage() {
             <h2>Two Powerful Exam Modes for Every Evaluation Need</h2>
             <p>
               Instructors can choose between strict traditional examination lockdown or 
-              industry-standard SuperSet assessments with interactive test runners and MCQs.
+              industry-standard interactive assessments with real-time test runners and MCQs.
             </p>
           </div>
 
@@ -272,7 +262,7 @@ export default function HomePage() {
               onClick={() => setActiveModeTab('superset')}
             >
               <Sparkles size={16} />
-              Option 2: SuperSet-Style Exam (Code Runner + MCQs)
+              Option 2: Interactive Assessment (Code Runner + MCQs)
             </button>
             <button
               className={`${styles.modeTabBtn} ${activeModeTab === 'standard' ? styles.modeTabBtnActive : ''}`}
@@ -290,7 +280,7 @@ export default function HomePage() {
                   <div className={styles.modeHighlightPill}>
                     <Sparkles size={14} /> Comprehensive Multi-Format Assessment
                   </div>
-                  <h3>SuperSet-Style Corporate Evaluation</h3>
+                  <h3>Interactive Corporate Evaluation</h3>
                   <p>
                     Replicates top placement and competitive hiring exam environments. Candidates can run 
                     and test their solutions in real time while answering subject matter MCQs.
@@ -315,7 +305,7 @@ export default function HomePage() {
                   </ul>
                   <div className={styles.modeActionRow}>
                     <Link href="/contests" className="btn btn-primary btn-md">
-                      View SuperSet Contests <ArrowRight size={14} />
+                      View Interactive Contests <ArrowRight size={14} />
                     </Link>
                   </div>
                 </div>
@@ -460,10 +450,10 @@ export default function HomePage() {
               </div>
               <h3>AI-Powered Mistake Diagnostics</h3>
               <p>
-                Our AI analyzes your submissions, identifies algorithmic bottlenecks, and curates customized lessons.
+                Our AI analyzes your submissions, identifies algorithmic bottlenecks, and explains failure test cases.
               </p>
-              <Link href="/learn" className={styles.cardLink}>
-                Explore Courses →
+              <Link href="/problems" className={styles.cardLink}>
+                Explore Problems →
               </Link>
             </div>
 
@@ -531,7 +521,7 @@ export default function HomePage() {
               <div className={styles.stepNumber}>02</div>
               <h3>Compete &amp; Assess</h3>
               <p>
-                Take live Standard or SuperSet contests with timed constraints and proctored multi-case evaluation.
+                Take live Standard or Interactive contests with timed constraints and proctored multi-case evaluation.
               </p>
             </div>
 
@@ -543,7 +533,7 @@ export default function HomePage() {
               <div className={styles.stepNumber}>03</div>
               <h3>Diagnose &amp; Master</h3>
               <p>
-                Review AI-generated mistake diagnostics and follow targeted course tracks to eliminate weaknesses.
+                Review AI-generated mistake diagnostics and algorithmic breakdowns to eliminate code weaknesses.
               </p>
             </div>
           </div>

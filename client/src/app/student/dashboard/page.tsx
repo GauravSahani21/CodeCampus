@@ -1,43 +1,20 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import {
-  BookOpen, Play, CheckCircle2, Flame, Award,
-  Sparkles, ArrowRight, Code2, Trophy, Clock,
-  ChevronRight, BrainCircuit, Target, Star
+  Flame, CheckCircle2,
+  Sparkles, ArrowRight, Code2, Trophy,
+  BrainCircuit, Target, Star, Swords, Terminal
 } from 'lucide-react';
 import styles from './dashboard.module.css';
 
 export default function StudentDashboardPage() {
-  const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, loadFromStorage } = useAuthStore();
 
-  const [loading, setLoading] = useState(true);
-  const [enrollments, setEnrollments] = useState<any[]>([]);
-  const [continueLearning, setContinueLearning] = useState<any>(null);
-  const [totalActive, setTotalActive] = useState(0);
-  const [totalCompleted, setTotalCompleted] = useState(0);
-  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
-
-  useEffect(() => {
-    const fetchEnrollments = async () => {
-      try {
-        const { data } = await api.get('/enrollments/my');
-        setEnrollments(data.enrollments || []);
-        setContinueLearning(data.continueLearning || null);
-        setTotalActive(data.totalActive || 0);
-        setTotalCompleted(data.totalCompleted || 0);
-      } catch {
-        // Not logged in or error
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEnrollments();
-  }, [user]);
+  React.useEffect(() => {
+    loadFromStorage();
+  }, [loadFromStorage]);
 
   const streak = user?.stats?.streak || 0;
   const longestStreak = (user?.stats as any)?.longestStreak || streak;
@@ -63,18 +40,18 @@ export default function StudentDashboardPage() {
     { id: 'perfect_submission', name: 'Perfect Submission', desc: 'Passed 100% test cases on 1st try' },
   ];
 
-  const earnedBadges = (user as any)?.earnedBadges || [];
+  const earnedBadges = user?.badges || [];
 
   return (
-    <div className={styles.page}>
+    <div className="container" style={{ paddingTop: 32, paddingBottom: 64 }}>
       {/* Hero Welcome Banner */}
       <div className={styles.heroBanner}>
         <div>
           <h1 className={styles.welcomeTitle}>
-          Welcome back, {user?.username || 'Student'}!
+            Welcome back, {user?.username || 'Student'}!
           </h1>
           <p className={styles.welcomeSubtitle}>
-            Track your self-paced course progress, algorithmic streak, and earned badges across your learning journey.
+            Track your algorithmic streak, solved problems, and earned badges across your competitive programming journey.
           </p>
         </div>
 
@@ -94,129 +71,113 @@ export default function StudentDashboardPage() {
         </div>
       </div>
 
-      {/* Continue Learning Card */}
-      {continueLearning && continueLearning.courseId && (
-        <div>
-          <div className={styles.sectionTitle}>
-            <Play size={18} color="#38bdf8" /> Continue Learning
-          </div>
-          <div className={styles.continueCard}>
-            <div className={styles.continueLeft}>
-              <div className={styles.continueBadge}>
-                {continueLearning.courseId.difficulty || 'Beginner'} Course
-              </div>
-              <h2 className={styles.continueTitle}>{continueLearning.courseId.title}</h2>
-              <p className={styles.continueDesc}>{continueLearning.courseId.description}</p>
-              
-              <div className={styles.progressBarContainer}>
-                <div
-                  className={styles.progressBarFill}
-                  style={{ width: `${continueLearning.progressPercent || 0}%` }}
-                />
-              </div>
-              <div className={styles.progressText}>
-                {continueLearning.progressPercent || 0}% completed • {continueLearning.completedLessons?.length || 0} of {continueLearning.courseId.lessons?.length || 0} lessons done
-              </div>
-            </div>
-
-            <div>
-              <Link
-                href={`/learn/${continueLearning.courseId.slug}`}
-                className={styles.resumeBtn}
-              >
-                Resume Course <ArrowRight size={16} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Grid: My Courses vs Badges & Recommendations */}
+      {/* Main Grid */}
       <div className={styles.dashboardGrid}>
-        {/* Left Column: Courses & Assignments */}
+        {/* Left Column: Problem Solving & Arena */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button
-                className={`btn btn-sm ${activeTab === 'active' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setActiveTab('active')}
-              >
-                In Progress ({totalActive})
-              </button>
-              <button
-                className={`btn btn-sm ${activeTab === 'completed' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setActiveTab('completed')}
-              >
-                Completed ({totalCompleted})
-              </button>
-            </div>
-
-            <Link href="/learn" style={{ fontSize: '0.82rem', color: '#58a6ff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-              Browse Catalog <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          {enrollments.filter(e => e.status === activeTab).length === 0 ? (
-            <div style={{ background: '#161b22', border: '1px dashed #30363d', borderRadius: 12, padding: 36, textAlign: 'center', marginBottom: 32 }}>
-              <BookOpen size={36} color="#8b949e" style={{ marginBottom: 12 }} />
-              <h3 style={{ color: '#fff', fontSize: '1.05rem', marginBottom: 6 }}>
-                {activeTab === 'active' ? 'No active courses in progress' : 'No completed courses yet'}
-              </h3>
-              <p style={{ color: '#8b949e', fontSize: '0.85rem', marginBottom: 18 }}>
-                Explore our comprehensive curriculum covering Python, Java, C++, DSA, and Web Foundations.
-              </p>
-              <Link href="/learn" className="btn btn-primary btn-sm">
-                Explore Courses
-              </Link>
-            </div>
-          ) : (
-            <div className={styles.coursesGrid}>
-              {enrollments
-                .filter(e => e.status === activeTab)
-                .map((enr) => {
-                  const c = enr.courseId;
-                  if (!c) return null;
-                  return (
-                    <Link key={enr._id} href={`/learn/${c.slug}`} className={styles.courseCard}>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 600, textTransform: 'uppercase' }}>
-                          {c.category || 'Programming'}
-                        </span>
-                        <h4 className={styles.courseCardTitle}>{c.title}</h4>
-                        <p className={styles.courseCardDesc}>{c.description}</p>
-                      </div>
-
-                      <div>
-                        <div className={styles.progressBarContainer} style={{ marginBottom: 6 }}>
-                          <div
-                            className={styles.progressBarFill}
-                            style={{ width: `${enr.progressPercent}%` }}
-                          />
-                        </div>
-                        <div className={styles.courseCardMeta}>
-                          <span>{enr.progressPercent}% done</span>
-                          <span>{c.lessons?.length || 0} Lessons</span>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-            </div>
-          )}
-
-          {/* Quick Problem Solving Card */}
-          <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 20, marginBottom: 28 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Daily Algorithm Practice Card */}
+          <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 24, marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: 4 }}>
                   Daily Algorithm Practice
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: '#8b949e' }}>
-                  Keep your coding streak active! Jump directly into competitive problem solving.
+                <p style={{ fontSize: '0.84rem', color: '#8b949e' }}>
+                  Keep your coding streak alive. Tackle algorithm problems categorized by topic and difficulty.
                 </p>
               </div>
-              <Link href="/problems" className="btn btn-secondary btn-sm">
-                Solve Problems
+              <Link href="/problems" className="btn btn-primary btn-sm">
+                Explore Problems <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 16 }}>
+              <Link
+                href="/problems"
+                style={{
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 8,
+                  padding: 16,
+                  textDecoration: 'none',
+                  display: 'block',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase' }}>
+                  Practice Hub
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginTop: 4 }}>
+                  All Challenges
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#8b949e', marginTop: 4 }}>
+                  Browse dynamic programming, trees, graphs &amp; arrays
+                </div>
+              </Link>
+
+              <Link
+                href="/versus"
+                style={{
+                  background: 'rgba(57, 211, 83, 0.08)',
+                  border: '1px solid rgba(57, 211, 83, 0.25)',
+                  borderRadius: 8,
+                  padding: 16,
+                  textDecoration: 'none',
+                  display: 'block',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-green)', textTransform: 'uppercase' }}>
+                  Versus Arena
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginTop: 4 }}>
+                  1v1 Code Battles
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#8b949e', marginTop: 4 }}>
+                  Real-time multiplayer coding with countdown timers
+                </div>
+              </Link>
+
+              <Link
+                href="/contests"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  borderRadius: 8,
+                  padding: 16,
+                  textDecoration: 'none',
+                  display: 'block',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase' }}>
+                  Contest Arena
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', marginTop: 4 }}>
+                  Timed Assessments
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#8b949e', marginTop: 4 }}>
+                  Proctored competitive coding exams
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          {/* Standalone IDE banner */}
+          <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 12, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#c084fc', padding: 10, borderRadius: 8 }}>
+                  <Terminal size={22} />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', margin: 0 }}>
+                    Standalone Scratchpad IDE
+                  </h4>
+                  <p style={{ fontSize: '0.8rem', color: '#8b949e', margin: '3px 0 0' }}>
+                    Multi-language Monaco editor with Wandbox code execution
+                  </p>
+                </div>
+              </div>
+              <Link href="/ide" className="btn btn-secondary btn-sm">
+                Open IDE
               </Link>
             </div>
           </div>
@@ -288,10 +249,10 @@ export default function StudentDashboardPage() {
               <ArrowRight size={14} color="#a78bfa" />
             </Link>
 
-            <Link href="/learn/data-structures-mastery" className={styles.recommendItem}>
+            <Link href="/versus" className={styles.recommendItem}>
               <div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff' }}>Course: Data Structures Mastery</div>
-                <div style={{ fontSize: '0.72rem', color: '#8b949e' }}>Arrays, Linked Lists, Trees</div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff' }}>Versus: 1v1 Battle Arena</div>
+                <div style={{ fontSize: '0.72rem', color: '#8b949e' }}>Challenge peers in real-time coding duels</div>
               </div>
               <ArrowRight size={14} color="#a78bfa" />
             </Link>

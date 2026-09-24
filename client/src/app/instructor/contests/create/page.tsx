@@ -38,7 +38,7 @@ const DEFAULT_STANDARD_INSTRUCTIONS =
   'Write your solution in the plain editor. Focus on clean algorithmic logic and edge cases. You will not have full IDE execution before submitting. Once submitted, your code is tested against judge cases and analyzed by AI for learning feedback.';
 
 const DEFAULT_SUPERSET_INSTRUCTIONS =
-  'Welcome to the SuperSet Assessment. You can run and test your code against sample test cases in real-time before submitting. Ensure you also review and complete all Multiple Choice Questions (MCQs) in the assessment before final submission.';
+  'Welcome to the Interactive Assessment. You can run and test your code against sample test cases in real-time before submitting. Ensure you also review and complete all Multiple Choice Questions (MCQs) in the assessment before final submission.';
 
 export default function CreateContestPage() {
   const router = useRouter();
@@ -347,7 +347,7 @@ export default function CreateContestPage() {
               </ul>
             </div>
 
-            {/* Option 2: SuperSet-Style Exam */}
+            {/* Option 2: Interactive Assessment */}
             <div
               className={`${styles.modeCard} ${contestType === 'superset' ? styles.modeCardActive : ''}`}
               onClick={() => handleModeChange('superset')}
@@ -360,7 +360,7 @@ export default function CreateContestPage() {
                   Option 2 · Interactive + MCQs
                 </span>
               </div>
-              <h3 className={styles.modeTitle}>SuperSet-Style Assessment</h3>
+              <h3 className={styles.modeTitle}>Interactive Assessment</h3>
               <p className={styles.modeDesc}>
                 Full assessment experience: candidates can run their code and execute against test cases in real-time, plus you can include Multiple Choice Questions (MCQs) for concept evaluation.
               </p>
@@ -395,7 +395,7 @@ export default function CreateContestPage() {
             <input
               type="text"
               className={styles.input}
-              placeholder="e.g. Weekly Algorithms Test #1 or SuperSet Technical Assessment"
+              placeholder="e.g. Weekly Algorithms Test #1 or Comprehensive Technical Assessment"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -413,7 +413,7 @@ export default function CreateContestPage() {
           </div>
 
           <div className={styles.fieldGroup}>
-            <label className={styles.label}>Student Instructions ({contestType === 'superset' ? 'SuperSet Mode' : 'Plain Editor Mode'})</label>
+            <label className={styles.label}>Student Instructions ({contestType === 'superset' ? 'Interactive Mode' : 'Plain Editor Mode'})</label>
             <textarea
               className={styles.textarea}
               value={instructions}
@@ -790,7 +790,7 @@ export default function CreateContestPage() {
             disabled={submitting || selectedProblems.length === 0}
           >
             <Trophy size={16} />
-            {submitting ? 'Creating Contest...' : `Publish ${contestType === 'superset' ? 'SuperSet' : 'Standard'} Contest`}
+            {submitting ? 'Creating Contest...' : `Publish ${contestType === 'superset' ? 'Interactive' : 'Standard'} Contest`}
           </button>
         </div>
       </form>
