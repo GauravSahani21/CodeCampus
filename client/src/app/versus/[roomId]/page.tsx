@@ -751,16 +751,7 @@ export default function VersusRoomPage() {
       ? 'tie'
       : 'defeat';
 
-    const heroGlowClass =
-      outcomeType === 'victory'
-        ? styles.resultHeroGlowVictory
-        : outcomeType === 'dqVictory'
-        ? styles.resultHeroGlowDqVictory
-        : outcomeType === 'defeat'
-        ? styles.resultHeroGlowDefeat
-        : outcomeType === 'dq'
-        ? styles.resultHeroGlowDq
-        : styles.resultHeroGlowTie;
+    const heroGlowClass = '';
 
     const titleClass =
       outcomeType === 'victory'
@@ -792,19 +783,13 @@ export default function VersusRoomPage() {
                     : outcomeType === 'tie'
                     ? '#60a5fa'
                     : '#f87171',
-                  boxShadow: outcomeType === 'victory' || outcomeType === 'dqVictory'
-                    ? '0 0 8px #34d399'
-                    : outcomeType === 'tie'
-                    ? '0 0 8px #60a5fa'
-                    : '0 0 8px #f87171',
                 }}
               />
               <span>1v1 Sudden Death &bull; Duel Concluded</span>
             </div>
 
-            {/* Hero Icon with Ambient Glow */}
+            {/* Hero Icon */}
             <div className={styles.resultHeroBox}>
-              <div className={`${styles.resultHeroGlow} ${heroGlowClass}`} />
               <div className={styles.resultHeroIconBubble}>
                 {outcomeType === 'victory' ? (
                   <Trophy size={38} style={{ color: '#34d399' }} />
