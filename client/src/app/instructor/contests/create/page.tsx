@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import {
-  ArrowLeft, Trophy, Sparkles, Plus, Search, Check, Trash2,
+  ArrowLeft, Trophy, Plus, Search, Check, Trash2,
   Clock, Calendar, BookOpen, AlertCircle, ShieldCheck, Terminal,
   Zap, ListChecks, HelpCircle, CheckCircle2
 } from 'lucide-react';
@@ -35,7 +35,7 @@ interface MCQFormItem {
 }
 
 const DEFAULT_STANDARD_INSTRUCTIONS =
-  'Write your solution in the plain editor. Focus on clean algorithmic logic and edge cases. You will not have full IDE execution before submitting. Once submitted, your code is tested against judge cases and analyzed by AI for learning feedback.';
+  'Write your solution in the plain editor. Focus on clean algorithmic logic and edge cases. You will not have full IDE execution before submitting. Once submitted, your code is tested against judge cases for scoring.';
 
 const DEFAULT_SUPERSET_INSTRUCTIONS =
   'Welcome to the Interactive Assessment. You can run and test your code against sample test cases in real-time before submitting. Ensure you also review and complete all Multiple Choice Questions (MCQs) in the assessment before final submission.';
@@ -80,7 +80,7 @@ export default function CreateContestPage() {
     },
   ]);
 
-  // AI & Config
+  // Contest Config
   const [aiEvaluationEnabled, setAiEvaluationEnabled] = useState(true);
   const [isPublished, setIsPublished] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -280,7 +280,7 @@ export default function CreateContestPage() {
         </Link>
         <h1 className={styles.title}>Create New Coding Contest</h1>
         <p className={styles.subtitle}>
-          Build a coding test by selecting questions from your library. Students write code in a plain editor and submit for automated AI evaluation and course recommendations.
+          Build a coding test by selecting questions from your library. Students write code in a plain editor and submit for automated test evaluation and scoring.
         </p>
       </div>
 
@@ -697,7 +697,7 @@ export default function CreateContestPage() {
 
                   {/* Explanation */}
                   <div className={styles.fieldGroup}>
-                    <label className={styles.label}>Explanation (Optional — shown in results &amp; AI review)</label>
+                    <label className={styles.label}>Explanation (Optional — shown in results review)</label>
                     <input
                       type="text"
                       className={styles.input}
@@ -720,38 +720,20 @@ export default function CreateContestPage() {
           </div>
         )}
 
-        {/* Section 4: AI & Submission Settings */}
+        {/* Section 4: Submission Settings */}
         <div className={styles.formSection}>
           <div className={styles.sectionHeader}>
             <div>
               <div className={styles.sectionTitle}>
-                <Sparkles size={18} style={{ color: 'var(--accent-green)' }} /> AI Diagnostic &amp; Recommendation Engine
+                <CheckCircle2 size={18} style={{ color: 'var(--accent-green)' }} /> Submission &amp; Visibility Settings
               </div>
               <div className={styles.sectionDesc}>
-                Evaluate student mistakes and recommend personalized courses
+                Configure publication status for this contest
               </div>
             </div>
           </div>
 
-          <div className={styles.aiBanner}>
-            <Sparkles size={22} className={styles.aiBannerIcon} />
-            <div>
-              <label className={styles.toggleLabel}>
-                <input
-                  type="checkbox"
-                  checked={aiEvaluationEnabled}
-                  onChange={(e) => setAiEvaluationEnabled(e.target.checked)}
-                  style={{ accentColor: 'var(--accent-green)', width: '16px', height: '16px' }}
-                />
-                <span>Enable AI Error Diagnosis &amp; Smart Course Recommendations</span>
-              </label>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '6px', lineHeight: '1.4' }}>
-                When students submit their solutions, the AI will diagnose why failed test cases occurred, highlight exact algorithmic mistakes (e.g. infinite recursion, array boundary overflow, missing base cases), and recommend relevant courses from the CodeCampus learning catalog.
-              </p>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '16px' }}>
+          <div style={{ marginTop: '8px' }}>
             <label className={styles.toggleLabel}>
               <input
                 type="checkbox"

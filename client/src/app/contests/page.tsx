@@ -204,7 +204,7 @@ export default function ContestsPage() {
 
                     <h2 className={styles.cardTitle}>{contest.title}</h2>
                     <p className={styles.cardDesc}>
-                      {contest.description || 'Test your algorithmic thinking and receive personalized AI diagnostic feedback.'}
+                      {contest.description || 'Test your algorithmic thinking and problem-solving skills across competitive challenges.'}
                     </p>
 
                     <div className={styles.metaGrid}>
@@ -216,7 +216,7 @@ export default function ContestsPage() {
                         </span>
                       </div>
                       <div className={styles.metaItem}>
-                        <span className={styles.metaLabel}>Weight & Questions</span>
+                        <span className={styles.metaLabel}>Weight &amp; Questions</span>
                         <span className={styles.metaValue}>
                           <Layers size={13} style={{ color: 'var(--accent-blue)' }} />
                           {(contest.problemCount || contest.problemsCount || contest.problems?.length || 0)} Coding
@@ -224,12 +224,6 @@ export default function ContestsPage() {
                         </span>
                       </div>
                     </div>
-
-                    {contest.aiEvaluationEnabled && (
-                      <div className={styles.aiFeatureBanner}>
-                        <Sparkles size={14} /> AI Mistake Analysis &amp; Algorithmic Diagnosis
-                      </div>
-                    )}
                   </div>
 
                   <div className={styles.cardFooter}>
@@ -239,7 +233,7 @@ export default function ContestsPage() {
                     </div>
                     {contest.hasAttended ? (
                       <Link href={`/contests/${contest.slug}/results`} className={styles.viewResultsBtn}>
-                        <Sparkles size={14} /> View Results &amp; Report
+                        <CheckCircle2 size={14} /> View Results
                       </Link>
                     ) : statusInfo.type === 'past' ? (
                       <Link href={`/contests/${contest.slug}/results`} className={styles.viewResultsBtn}>

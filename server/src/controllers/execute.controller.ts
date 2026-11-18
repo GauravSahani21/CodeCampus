@@ -35,6 +35,29 @@ async function executeCode(language: string, sourceCode: string, stdin: string) 
   return executeLocally(language, sourceCode, stdin);
 }
 
+// Helper: robust comparison for outputs
+function compareOutputs(actual: string, expected: string): boolean {
+  const normActual = actual.trim();
+  const normExpected = expected.trim();
+  if (normActual === normExpected) return true;
+  if (normActual.toLowerCase() === normExpected.toLowerCase()) return true;
+  try {
+    const actJson = JSON.parse(normActual);
+    const expJson = JSON.parse(normExpected);
+    if (JSON.stringify(actJson) === JSON.stringify(expJson)) return true;
+  } catch {}
+  const actLines = normActual.split('\n').map((l) => l.trim());
+  const expLines = normExpected.split('\n').map((l) => l.trim());
+  if (actLines.length === expLines.length) {
+    const allMatch = actLines.every((l, idx) => {
+      if (l === expLines[idx]) return true;
+      return l.replace(/\s+/g, '') === expLines[idx].replace(/\s+/g, '');
+    });
+    if (allMatch) return true;
+  }
+  return false;
+}
+
 export const runCode = async (req: Request, res: Response): Promise<void> => {
   try {
     const { language, sourceCode, stdin, problemId } = executeSchema.parse(req.body);
@@ -53,6 +76,67 @@ export const runCode = async (req: Request, res: Response): Promise<void> => {
     }
 
     let effectiveSourceCode = sourceCode;
+
+    // If problemId is provided and no custom stdin, evaluate against example test cases
+    if (problemId && (!stdin || !stdin.trim())) {
+      const problem = await Problem.findById(problemId);
+      if (problem && problem.testCases && problem.testCases.length > 0) {
+        effectiveSourceCode = wrapCodeWithDriver(language, sourceCode, problem);
+        const testCasesToRun = problem.testCases.filter((tc) => tc.isExample);
+        const effectiveTestCases = testCasesToRun.length > 0 ? testCasesToRun : problem.testCases.slice(0, 3);
+
+        if (effectiveTestCases.length > 0) {
+          const testResults = [];
+          let totalRuntime = 0;
+          let allPassed = true;
+          let passedCount = 0;
+          let globalStderr = '';
+
+          for (let i = 0; i < effectiveTestCases.length; i++) {
+            const tc = effectiveTestCases[i];
+            const start = Date.now();
+            const execResult = await executeCode(language, effectiveSourceCode, tc.input);
+            const duration = (execResult.runtime !== undefined && execResult.runtime > 0) ? execResult.runtime : (Date.now() - start);
+            totalRuntime += duration;
+            const output = (execResult.stdout || '').trim();
+            const hasError = execResult.exitCode !== 0 || Boolean(execResult.stderr && execResult.stderr.trim());
+            if (hasError && !globalStderr) globalStderr = execResult.stderr || '';
+            const passed = !hasError && compareOutputs(output, tc.expectedOutput);
+            if (passed) passedCount++;
+            else allPassed = false;
+
+            testResults.push({
+              passed,
+              input: tc.input,
+              expected: tc.expectedOutput,
+              actual: output || (hasError ? execResult.stderr : '(no output)'),
+              runtime: duration,
+            });
+          }
+
+          let finalStatus = allPassed ? 'Accepted' : 'Wrong Answer';
+          if (!allPassed && globalStderr) {
+            const errText = globalStderr.toLowerCase();
+            if (errText.includes('syntax') || errText.includes('compile') || errText.includes('error:')) {
+              finalStatus = 'Compile Error';
+            } else {
+              finalStatus = 'Runtime Error';
+            }
+          }
+
+          res.json({
+            status: finalStatus,
+            runtime: Math.round(totalRuntime / effectiveTestCases.length),
+            passedCount,
+            totalCount: effectiveTestCases.length,
+            stderr: globalStderr || undefined,
+            testResults,
+          });
+          return;
+        }
+      }
+    }
+
     if (problemId) {
       const problem = await Problem.findById(problemId);
       if (problem) {
@@ -61,6 +145,28 @@ export const runCode = async (req: Request, res: Response): Promise<void> => {
     }
 
     const result = await executeCode(language, effectiveSourceCode, stdin || '');
+
+    if (problemId && stdin && stdin.trim()) {
+      const hasError = result.exitCode !== 0 || Boolean(result.stderr && result.stderr.trim());
+      res.json({
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        runtime: result.runtime,
+        status: hasError ? 'Error' : 'Finished',
+        passedCount: hasError ? 0 : 1,
+        totalCount: 1,
+        testResults: [{
+          passed: !hasError,
+          input: stdin,
+          expected: '',
+          actual: (result.stdout || '').trim() || (hasError ? result.stderr : '(no output)'),
+          runtime: result.runtime,
+        }],
+      });
+      return;
+    }
+
     res.json(result);
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -81,23 +187,5 @@ export const getSupportedLanguages = (_req: Request, res: Response): void => {
   ].map((lang) => ({ id: lang, engine: isJudge0Supported(lang) ? 'judge0' : 'local' }));
 
   res.json(languages);
-};
-
-export const reviewCode = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { language, sourceCode, problemTitle, problemDescription } = req.body;
-    if (!sourceCode || typeof sourceCode !== 'string') {
-      res.status(400).json({ error: 'sourceCode is required' });
-      return;
-    }
-    const { generateAICodeReview } = await import('../services/aiCodeReview.service');
-    const review = generateAICodeReview(language || 'python', sourceCode, {
-      problemTitle,
-      problemDescription,
-    });
-    res.json(review);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'AI Code Review failed' });
-  }
 };
 

@@ -123,6 +123,13 @@ export const getMe = async (req: Request & { user?: { id: string } }, res: Respo
   try {
     const user = await User.findById(req.user?.id).select('-passwordHash');
     if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+
+    // Sync stats.solved with the actual number of unique solved problems
+    if (user.solvedProblems && user.stats && user.stats.solved !== user.solvedProblems.length) {
+      user.stats.solved = user.solvedProblems.length;
+      await User.updateOne({ _id: user._id }, { $set: { 'stats.solved': user.solvedProblems.length } });
+    }
+
     res.json(user);
   } catch {
     res.status(500).json({ error: 'Failed to fetch user' });

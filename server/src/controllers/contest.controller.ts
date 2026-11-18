@@ -4,7 +4,6 @@ import Contest from '../models/Contest.model';
 import ContestSubmission from '../models/ContestSubmission.model';
 import Problem from '../models/Problem.model';
 import { executeCode } from '../services/piston.service';
-import { evaluateContestSubmission } from '../services/aiEvaluation.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { wrapCodeWithDriver, cleanStarterTemplate } from '../services/driverWrapper.service';
 
@@ -194,6 +193,10 @@ const submitContestSchema = z.object({
         .default([]),
     })
     .optional(),
+  isDisqualified: z.boolean().optional().default(false),
+  isCheating: z.boolean().optional().default(false),
+  disqualificationReason: z.string().optional().default(''),
+  cheatingReason: z.string().optional().default(''),
 });
 
 // ── POST /api/contests/:id/run ──────────────────────────────────────────────
@@ -297,7 +300,7 @@ export const runContestCode = async (req: AuthRequest, res: Response): Promise<v
 
 export const submitContest = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { timeSpentSeconds, solutions, mcqAnswers, proctoringData } = submitContestSchema.parse(req.body);
+    const { timeSpentSeconds, solutions, mcqAnswers, proctoringData, isDisqualified, isCheating, disqualificationReason, cheatingReason } = submitContestSchema.parse(req.body);
     const userId = req.user!.id;
 
     const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -313,6 +316,19 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // Check if flagged as cheating / disqualified by flag or exceeding 3 violations/tab switches
+    const isCheatedOrDisqualified = Boolean(
+      isDisqualified ||
+      isCheating ||
+      (proctoringData && ((proctoringData.violationsCount || 0) >= 3 || (proctoringData.tabSwitches || 0) >= 3))
+    );
+    const finalReason = isCheatedOrDisqualified
+      ? cheatingReason ||
+        disqualificationReason ||
+        'Academic integrity violation: Exceeded maximum allowed proctoring violations (3/3). Contest terminated and flagged as cheating with score of 0.'
+      : '';
+    const finalStatus = isCheatedOrDisqualified ? 'Cheating' : 'Completed';
+
     // Existing submission check: we allow re-taking or updating solutions
     const existingSubmission = await ContestSubmission.findOne({
       contestId: contest._id,
@@ -322,7 +338,6 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
     let codingScore = 0;
     let maxCodingScore = 0;
     const problemSubmissions: any[] = [];
-    const evaluationInputs: any[] = [];
 
     // Evaluate each problem in the contest
     if (Array.isArray(contest.problems)) {
@@ -392,17 +407,6 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
           testResults,
         });
 
-        // Prepare input for AI Diagnostic Engine
-        evaluationInputs.push({
-          problemTitle: problem.title,
-          problemDescription: problem.description,
-          tags: problem.tags,
-          language,
-          code,
-          passedTestCases: passedCount,
-          totalTestCases: totalCases,
-          testResults,
-        });
       }
     }
 
@@ -437,14 +441,15 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
       }
     }
 
-    const totalScore = codingScore + mcqScore;
+    const effectiveCodingScore = isCheatedOrDisqualified ? 0 : codingScore;
+    const effectiveMcqScore = isCheatedOrDisqualified ? 0 : mcqScore;
+    const totalScore = isCheatedOrDisqualified ? 0 : effectiveCodingScore + effectiveMcqScore;
     const maxScore = maxCodingScore + maxMCQScore;
-    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
-
-    // Run AI Evaluation
-    const aiReport = evaluationInputs.length > 0
-      ? await evaluateContestSubmission(evaluationInputs)
-      : { summary: 'Assessment completed.', mistakes: [], conceptsToFocus: [], recommendedCourses: [], evaluatedAt: new Date() };
+    const percentage = isCheatedOrDisqualified
+      ? 0
+      : maxScore > 0
+      ? Math.round((totalScore / maxScore) * 100)
+      : 0;
 
     // Save or update submission
     let submission: any;
@@ -452,13 +457,16 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
       existingSubmission.contestType = contest.contestType || 'standard';
       existingSubmission.problemSubmissions = problemSubmissions;
       existingSubmission.mcqSubmissions = mcqSubmissions;
-      existingSubmission.codingScore = codingScore;
-      existingSubmission.mcqScore = mcqScore;
+      existingSubmission.codingScore = effectiveCodingScore;
+      existingSubmission.mcqScore = effectiveMcqScore;
       existingSubmission.totalScore = totalScore;
       existingSubmission.maxScore = maxScore;
       existingSubmission.percentage = percentage;
-      existingSubmission.status = 'Completed';
-      existingSubmission.aiReport = aiReport;
+      existingSubmission.status = finalStatus;
+      existingSubmission.isDisqualified = isCheatedOrDisqualified;
+      existingSubmission.isCheating = isCheatedOrDisqualified;
+      existingSubmission.disqualificationReason = finalReason;
+      existingSubmission.cheatingReason = finalReason;
       existingSubmission.proctoringData = proctoringData as any;
       existingSubmission.timeSpentSeconds = timeSpentSeconds;
       existingSubmission.submittedAt = new Date();
@@ -471,13 +479,16 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
         contestType: contest.contestType || 'standard',
         problemSubmissions,
         mcqSubmissions,
-        codingScore,
-        mcqScore,
+        codingScore: effectiveCodingScore,
+        mcqScore: effectiveMcqScore,
         totalScore,
         maxScore,
         percentage,
-        status: 'Completed',
-        aiReport,
+        status: finalStatus,
+        isDisqualified: isCheatedOrDisqualified,
+        isCheating: isCheatedOrDisqualified,
+        disqualificationReason: finalReason,
+        cheatingReason: finalReason,
         proctoringData: proctoringData as any,
         timeSpentSeconds,
         submittedAt: new Date(),
@@ -489,11 +500,15 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
       totalScore,
       maxScore,
       percentage,
-      codingScore,
-      mcqScore,
+      codingScore: submission.codingScore,
+      mcqScore: submission.mcqScore,
+      status: submission.status,
+      isDisqualified: submission.isDisqualified,
+      isCheating: submission.isCheating,
+      disqualificationReason: submission.disqualificationReason,
+      cheatingReason: submission.cheatingReason,
       problemSubmissions,
       mcqSubmissions,
-      aiReport,
       proctoringData: submission.proctoringData,
       submittedAt: submission.submittedAt,
     });

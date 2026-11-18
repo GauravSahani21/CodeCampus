@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {
   Users, Search, ChevronUp, ChevronDown, ChevronsUpDown,
   Award, Zap, Code2, CheckCircle2, AlertCircle, RefreshCw,
-  ExternalLink, Flame, TrendingUp,
+  ExternalLink, Flame, TrendingUp, Rocket, Trophy, Crown, Target
 } from 'lucide-react';
 import api from '@/lib/api';
 import styles from './students.module.css';
@@ -54,6 +54,29 @@ const FALLBACK_STUDENTS: Student[] = Array.from({ length: 6 }, (_, i) => ({
   badges: i % 2 === 0 ? ['First AC', 'Streak 7'] : ['First AC'],
   submissions: { total: [60, 48, 25, 70, 12, 40][i], accepted: [42, 31, 18, 55, 7, 29][i] },
 }));
+
+function getStudentBadgeIcon(badge: string) {
+  const lower = badge.toLowerCase();
+  if (lower.includes('streak') || lower.includes('flame')) {
+    return <Flame size={10} color="#f97316" />;
+  }
+  if (lower.includes('first') || lower.includes('ac') || lower.includes('blood')) {
+    return <Rocket size={10} color="#10b981" />;
+  }
+  if (lower.includes('100') || lower.includes('century') || lower.includes('trophy')) {
+    return <Trophy size={10} color="#eab308" />;
+  }
+  if (lower.includes('winner') || lower.includes('contest') || lower.includes('crown')) {
+    return <Crown size={10} color="#fbbf24" />;
+  }
+  if (lower.includes('perfect') || lower.includes('flawless')) {
+    return <Target size={10} color="#f43f5e" />;
+  }
+  if (lower.includes('10') || lower.includes('code')) {
+    return <Code2 size={10} color="#38bdf8" />;
+  }
+  return <Award size={10} color="#a855f7" />;
+}
 
 export default function InstructorStudentsPage() {
   const [students, setStudents]   = useState<Student[]>([]);
@@ -273,7 +296,7 @@ export default function InstructorStudentsPage() {
                       <div className={styles.badgesCell}>
                         {student.badges.length > 0 ? (
                           student.badges.slice(0, 2).map((b) => (
-                            <span key={b} className={styles.badge}><Award size={10} />{b}</span>
+                            <span key={b} className={styles.badge}>{getStudentBadgeIcon(b)}{b}</span>
                           ))
                         ) : (
                           <span className={styles.noBadge}>—</span>

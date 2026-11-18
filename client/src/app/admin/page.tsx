@@ -541,7 +541,7 @@ export default function AdminPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <CheckCircle2 size={16} style={{ color: 'var(--accent-green)' }} />
-                      <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>AI Diagnostic Engine</span>
+                      <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Code Execution Sandbox &amp; Judge</span>
                     </div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: 700 }}>ONLINE</span>
                   </div>
@@ -1292,10 +1292,10 @@ export default function AdminPage() {
               <div className={styles.bentoCard}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                   <Sparkles size={16} style={{ color: '#c084fc' }} />
-                  <span style={{ fontWeight: 700, color: '#fff', fontSize: '0.9rem' }}>Gemini AI Engine</span>
+                  <span style={{ fontWeight: 700, color: '#fff', fontSize: '0.9rem' }}>Diagnostic Engine</span>
                 </div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#c084fc', marginBottom: '4px' }}>Ready</div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Automated code diagnostic service</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#c084fc', marginBottom: '4px' }}>Active (Local)</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Deterministic weakness &amp; recommendation engine</div>
               </div>
 
               <div className={styles.bentoCard}>

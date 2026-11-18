@@ -5,7 +5,7 @@ import { LobbyState, LobbySettings, RoomStatus } from '../types/versus';
 
 const DEFAULT_SETTINGS: LobbySettings = {
   difficulty: 'all',
-  questionCount: 3,
+  questionCount: 1,
   timeLimitMinutes: 30,
   selectionMode: 'random',
   specificQuestionIds: [],
@@ -91,6 +91,8 @@ function serializeLobby(roomId: string, raw: Record<string, string>): LobbyState
     roomId,
     hostId: raw.hostId ?? '',
     opponentId: raw.opponentId ?? '',
+    hostUsername: raw.hostUsername || '',
+    opponentUsername: raw.opponentUsername || '',
     settings: raw.settings ? (JSON.parse(raw.settings) as LobbySettings) : { ...DEFAULT_SETTINGS },
     status: (raw.status as RoomStatus) ?? 'LOBBY',
     currentQuestions: raw.currentQuestions ? (JSON.parse(raw.currentQuestions) as string[]) : [],
@@ -102,10 +104,12 @@ function serializeLobby(roomId: string, raw: Record<string, string>): LobbyState
 
 // ─── Public API ───────────────────────────────────────────────────────────
 
-export async function createLobby(roomId: string, hostId: string): Promise<LobbyState> {
+export async function createLobby(roomId: string, hostId: string, hostUsername?: string): Promise<LobbyState> {
   const raw: Record<string, string> = {
     hostId,
     opponentId: '',
+    hostUsername: hostUsername || '',
+    opponentUsername: '',
     settings: JSON.stringify(DEFAULT_SETTINGS),
     status: 'LOBBY',
     currentQuestions: JSON.stringify([]),
@@ -127,17 +131,43 @@ export async function updateLobbySettings(
 ): Promise<LobbyState | null> {
   const lobby = await getLobby(roomId);
   if (!lobby) return null;
-  const merged: LobbySettings = { ...lobby.settings, ...settings };
+  const merged: LobbySettings = { ...lobby.settings, ...settings, questionCount: 1 };
   await hset(`room:${roomId}`, { settings: JSON.stringify(merged) });
   lobby.settings = merged;
   return lobby;
 }
 
-export async function joinLobby(roomId: string, userId: string): Promise<LobbyState | null> {
+export async function joinLobby(roomId: string, userId: string, opponentUsername?: string): Promise<LobbyState | null> {
   const lobby = await getLobby(roomId);
   if (!lobby) return null;
-  await hset(`room:${roomId}`, { opponentId: userId });
+  const updates: Record<string, string> = { opponentId: userId };
+  if (opponentUsername) {
+    updates.opponentUsername = opponentUsername;
+    lobby.opponentUsername = opponentUsername;
+  }
+  await hset(`room:${roomId}`, updates);
   lobby.opponentId = userId;
+  return lobby;
+}
+
+export async function updateLobbyUsernames(
+  roomId: string,
+  usernames: { hostUsername?: string; opponentUsername?: string }
+): Promise<LobbyState | null> {
+  const lobby = await getLobby(roomId);
+  if (!lobby) return null;
+  const updates: Record<string, string> = {};
+  if (usernames.hostUsername) {
+    updates.hostUsername = usernames.hostUsername;
+    lobby.hostUsername = usernames.hostUsername;
+  }
+  if (usernames.opponentUsername) {
+    updates.opponentUsername = usernames.opponentUsername;
+    lobby.opponentUsername = usernames.opponentUsername;
+  }
+  if (Object.keys(updates).length > 0) {
+    await hset(`room:${roomId}`, updates);
+  }
   return lobby;
 }
 
@@ -150,6 +180,21 @@ export async function updateLobbyScores(
   if (!lobby) return;
   const newScores = { hostScore, opponentScore };
   await hset(`room:${roomId}`, { scores: JSON.stringify(newScores) });
+}
+
+export async function setLobbyStarting(
+  roomId: string,
+  questionIds: string[]
+): Promise<LobbyState | null> {
+  const lobby = await getLobby(roomId);
+  if (!lobby) return null;
+  await hset(`room:${roomId}`, {
+    currentQuestions: JSON.stringify(questionIds),
+    status: 'STARTING',
+  });
+  lobby.currentQuestions = questionIds;
+  lobby.status = 'STARTING';
+  return lobby;
 }
 
 export async function startLobbyMatch(
@@ -171,16 +216,23 @@ export async function updateLobbyStatus(roomId: string, status: RoomStatus): Pro
   await hset(`room:${roomId}`, { status });
 }
 
-export async function migrateHost(roomId: string, newHostId: string): Promise<LobbyState | null> {
+export async function migrateHost(roomId: string, newHostId: string, newHostUsername?: string): Promise<LobbyState | null> {
   const lobby = await getLobby(roomId);
   if (!lobby) return null;
-  await hset(`room:${roomId}`, {
+  const updates: Record<string, string> = {
     hostId: newHostId,
     opponentId: '',
     status: 'LOBBY',
-  });
+  };
+  if (newHostUsername) updates.hostUsername = newHostUsername;
+  else if (lobby.opponentUsername) updates.hostUsername = lobby.opponentUsername;
+  updates.opponentUsername = '';
+
+  await hset(`room:${roomId}`, updates);
   lobby.hostId = newHostId;
+  lobby.hostUsername = updates.hostUsername || '';
   lobby.opponentId = '';
+  lobby.opponentUsername = '';
   lobby.status = 'LOBBY';
   return lobby;
 }

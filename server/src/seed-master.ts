@@ -79,27 +79,39 @@ Output: [1,2]
     starterTemplates: {
       python: `def twoSum(nums, target):
     # Your code here
-    pass
+    return []
 
 import sys
 data = sys.stdin.read().split()
-n = int(data[0])
-nums = list(map(int, data[1:n+1]))
-target = int(data[n+1])
-result = twoSum(nums, target)
-print(*result)`,
+if data:
+    n = int(data[0])
+    nums = list(map(int, data[1:n+1]))
+    target = int(data[n+1])
+    result = twoSum(nums, target)
+    if result and len(result) >= 2:
+        print(f"{result[0]} {result[1]}")
+    else:
+        print("-1 -1")`,
       javascript: `const readline = require('readline');
 const rl = readline.createInterface({ input: process.stdin });
 const lines = [];
 rl.on('line', l => lines.push(l.trim()));
 rl.on('close', () => {
-  const n = parseInt(lines[0]);
-  const nums = lines[1].split(' ').map(Number);
-  const target = parseInt(lines[2]);
-  function twoSum(nums, target) {
-    // Your code here
+  if (lines.length >= 3) {
+    const n = parseInt(lines[0]);
+    const nums = lines[1].split(' ').map(Number);
+    const target = parseInt(lines[2]);
+    function twoSum(nums, target) {
+      // Your code here
+      return [];
+    }
+    const r = twoSum(nums, target);
+    if (Array.isArray(r) && r.length >= 2) {
+      console.log(r[0] + ' ' + r[1]);
+    } else {
+      console.log('-1 -1');
+    }
   }
-  console.log(twoSum(nums, target).join(' '));
 });`,
       cpp: `#include <iostream>
 #include <vector>
@@ -115,7 +127,8 @@ int main() {
     for(int i=0;i<n;i++) cin >> nums[i];
     int target; cin >> target;
     auto r = twoSum(nums, target);
-    cout << r[0] << " " << r[1] << endl;
+    if (r.size() >= 2) cout << r[0] << " " << r[1] << endl;
+    else cout << "-1 -1" << endl;
 }`,
       java: `import java.util.*;
 public class Main {
@@ -130,7 +143,11 @@ public class Main {
         for(int i=0;i<n;i++) nums[i] = sc.nextInt();
         int target = sc.nextInt();
         int[] r = twoSum(nums, target);
-        System.out.println(r[0] + " " + r[1]);
+        if (r != null && r.length >= 2) {
+            System.out.println(r[0] + " " + r[1]);
+        } else {
+            System.out.println("-1 -1");
+        }
     }
 }`,
     },

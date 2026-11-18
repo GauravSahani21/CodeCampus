@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import LanguageSelector from '@/components/Editor/LanguageSelector';
-import VsCodeTerminal from '@/components/Editor/VsCodeTerminal';
+import LeetCodeConsole from '@/components/Editor/LeetCodeConsole';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,7 +15,6 @@ import {
   Play,
   Send,
   RotateCcw,
-  Terminal as TerminalIcon,
   FileText,
   History,
   Lightbulb,
@@ -25,15 +24,28 @@ import {
   CheckCircle2,
   Check,
   MessageSquare,
-  Sparkles,
   ThumbsUp,
   Plus,
   BookOpen,
-  Cpu,
-  Clock,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Menu,
+  ChevronLeft,
+  ChevronRight,
+  Shuffle,
+  UploadCloud,
+  Maximize2,
+  Flame,
+  Code2,
+  Braces,
+  HelpCircle,
   Bug,
-  Zap,
+  Search,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
+import { formatCode } from '@/lib/codeFormatter';
 import FileLanguageIcon from '@/components/Editor/FileLanguageIcon';
 import styles from './page.module.css';
 
@@ -45,6 +57,7 @@ interface Problem {
   examples: Array<{ input: string; output: string; explanation?: string }>;
   starterTemplates: Record<string, string>;
   hints: string[];
+  questionId?: number;
 }
 
 const DEFAULT_TEMPLATES: Record<string, string> = {
@@ -116,16 +129,50 @@ const LANG_FILE_MAP: Record<string, string> = {
   rust: 'solution.rs',
 };
 
+const formatTimeAgo = (dateInput?: string | Date): string => {
+  if (!dateInput) return 'recently';
+  const date = new Date(dateInput);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (isNaN(diffInSeconds) || diffInSeconds < 0) return 'just now';
+  if (diffInSeconds < 60) return 'just now';
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) return `${diffInDays}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const getAvatarGradient = (name?: string) => {
+  const gradients = [
+    'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+    'linear-gradient(135deg, #059669 0%, #047857 100%)',
+    'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+    'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+    'linear-gradient(135deg, #db2777 0%, #be185d 100%)',
+  ];
+  if (!name) return gradients[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return gradients[Math.abs(hash) % gradients.length];
+};
+
 export default function ProblemSolvePage() {
   const { slug } = useParams() as { slug: string };
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, loadFromStorage } = useAuthStore();
+
+  useEffect(() => {
+    loadFromStorage();
+  }, [loadFromStorage]);
 
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState('java');
   const [code, setCode] = useState('');
-  const [activeLeftTab, setActiveLeftTab] = useState<'question' | 'submissions' | 'discuss' | 'ai-review'>('question');
+  const [activeLeftTab, setActiveLeftTab] = useState<'question' | 'submissions' | 'discuss'>('question');
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
   
   const [output, setOutput] = useState<{ 
@@ -141,19 +188,19 @@ export default function ProblemSolvePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConsoleOpen, setIsConsoleOpen] = useState(true);
   const [customInput, setCustomInput] = useState('');
+  const [activeConsoleTab, setActiveConsoleTab] = useState<'testcase' | 'result'>('testcase');
 
   const [submissionsList, setSubmissionsList] = useState<any[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [showHint, setShowHint] = useState(false);
 
-  // AI Review state
-  const [isReviewing, setIsReviewing] = useState(false);
-  const [aiReview, setAiReview] = useState<any>(null);
 
   // Discussion state
   const [discussions, setDiscussions] = useState<any[]>([]);
   const [loadingDiscussions, setLoadingDiscussions] = useState(false);
   const [discussCategory, setDiscussCategory] = useState<string>('all');
+  const [discussSort, setDiscussSort] = useState<'newest' | 'top'>('newest');
+  const [discussSearch, setDiscussSearch] = useState('');
   const [showNewThread, setShowNewThread] = useState(false);
   const [newThreadTitle, setNewThreadTitle] = useState('');
   const [newThreadContent, setNewThreadContent] = useState('');
@@ -161,8 +208,62 @@ export default function ProblemSolvePage() {
   const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
-  // Fetch problem on mount
+  // Problem list for Prev / Next / Random navigation
+  const [problemList, setProblemList] = useState<Array<{ slug: string; title: string; questionId?: number }>>([]);
+
   useEffect(() => {
+    api.get('/problems?limit=100').then(({ data }) => {
+      if (Array.isArray(data?.problems)) {
+        const sorted = [...data.problems].sort((a: any, b: any) => {
+          const numA = a.questionId || parseInt(a.title?.split('.')[0], 10) || 0;
+          const numB = b.questionId || parseInt(b.title?.split('.')[0], 10) || 0;
+          return numA - numB;
+        });
+        setProblemList(sorted);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const currentProblemIndex = problemList.findIndex((p) => p.slug === slug);
+  const prevProblem = currentProblemIndex > 0
+    ? problemList[currentProblemIndex - 1]
+    : (problemList.length > 1 ? problemList[problemList.length - 1] : null);
+
+  const nextProblem = currentProblemIndex !== -1 && currentProblemIndex < problemList.length - 1
+    ? problemList[currentProblemIndex + 1]
+    : (problemList.length > 1 ? problemList[0] : null);
+
+  const handlePrevProblem = () => {
+    if (prevProblem) {
+      router.push(`/problems/${prevProblem.slug}`);
+    } else if (problemList.length > 0) {
+      router.push(`/problems/${problemList[0].slug}`);
+    }
+  };
+
+  const handleNextProblem = () => {
+    if (nextProblem) {
+      router.push(`/problems/${nextProblem.slug}`);
+    } else if (problemList.length > 0) {
+      router.push(`/problems/${problemList[0].slug}`);
+    }
+  };
+
+  const handleRandomProblem = () => {
+    if (problemList.length === 0) return;
+    const others = problemList.filter((p) => p.slug !== slug);
+    const pool = others.length > 0 ? others : problemList;
+    const picked = pool[Math.floor(Math.random() * pool.length)];
+    if (picked) {
+      router.push(`/problems/${picked.slug}`);
+    }
+  };
+
+  // Fetch problem on mount or slug change
+  useEffect(() => {
+    setLoading(true);
+    setOutput(null);
+    setShowHint(false);
     api.get(`/problems/${slug}`).then(({ data }) => {
       setProblem(data);
       const tmpl = data.starterTemplates?.[language] || DEFAULT_TEMPLATES[language] || '';
@@ -185,15 +286,19 @@ export default function ProblemSolvePage() {
     if (!problem) return;
     setLoadingDiscussions(true);
     try {
-      const url = `/discussions/problem/${problem.slug}${discussCategory !== 'all' ? `?category=${discussCategory}` : ''}`;
+      const params = new URLSearchParams();
+      if (discussCategory !== 'all') params.append('category', discussCategory);
+      if (discussSort === 'top') params.append('sort', 'top');
+      const queryStr = params.toString();
+      const url = `/discussions/problem/${problem.slug}${queryStr ? `?${queryStr}` : ''}`;
       const { data } = await api.get(url);
-      setDiscussions(data);
+      setDiscussions(Array.isArray(data) ? data : []);
     } catch {
       // ignore
     } finally {
       setLoadingDiscussions(false);
     }
-  }, [problem, discussCategory]);
+  }, [problem, discussCategory, discussSort]);
 
   useEffect(() => {
     if (activeLeftTab === 'discuss' && problem) {
@@ -201,28 +306,6 @@ export default function ProblemSolvePage() {
     }
   }, [activeLeftTab, problem, fetchDiscussions]);
 
-  const handleAIReview = async () => {
-    if (!code.trim()) {
-      toast.error('Code editor is empty');
-      return;
-    }
-    setIsReviewing(true);
-    setActiveLeftTab('ai-review');
-    try {
-      const { data } = await api.post('/execute/ai-review', {
-        language,
-        sourceCode: code,
-        problemTitle: problem?.title,
-        problemDescription: problem?.description,
-      });
-      setAiReview(data);
-      toast.success('AI Code Review complete!');
-    } catch {
-      toast.error('AI review failed. Please try again.');
-    } finally {
-      setIsReviewing(false);
-    }
-  };
 
   const handleCreateDiscussion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,9 +379,23 @@ export default function ProblemSolvePage() {
     setOutput(null);
   }, [problem]);
 
+  const handleFormatCode = () => {
+    if (!code || !code.trim()) {
+      toast.error('No code to format');
+      return;
+    }
+    try {
+      const formatted = formatCode(code, language);
+      setCode(formatted);
+      toast.success('Code formatted');
+    } catch {
+      toast.error('Unable to format code');
+    }
+  };
+
   const handleRun = async (overrideStdin?: string) => {
     if (!code.trim()) { toast.error('Write some code first!'); return; }
-    setIsRunning(true); setOutput(null); setIsConsoleOpen(true);
+    setIsRunning(true); setOutput(null); setIsConsoleOpen(true); setActiveConsoleTab('result');
     try {
       const defaultTestInput = (problem as any)?.exampleTestCases?.[0]?.input || (problem as any)?.testCases?.[0]?.input || problem?.examples?.[0]?.input || '';
       const effectiveStdin = typeof overrideStdin === 'string' ? overrideStdin : (customInput.trim() ? customInput : defaultTestInput);
@@ -314,7 +411,7 @@ export default function ProblemSolvePage() {
   const handleSubmit = async () => {
     if (!user) { toast.error('Sign in to submit!'); router.push('/auth/login'); return; }
     if (!code.trim() || !problem) return;
-    setIsSubmitting(true); setOutput(null); setIsConsoleOpen(true);
+    setIsSubmitting(true); setOutput(null); setIsConsoleOpen(true); setActiveConsoleTab('result');
     try {
       const { data } = await api.post('/submissions', { problemId: problem._id, language, sourceCode: code });
       setOutput(data);
@@ -361,9 +458,114 @@ export default function ProblemSolvePage() {
 
   return (
     <div className={styles.page}>
+      {/* LeetCode Problem Solver Top Navbar */}
+      <header className={styles.lcTopBar}>
+        {/* Left: CodeCampus Logo, Problem List link, < > random navigation */}
+        <div className={styles.lcTopLeft}>
+          <Link href="/problems" className={styles.lcBrandLogo} title="CodeCampus Problems">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 8l-4 4 4 4M17 8l4 4-4 4M14 4.5l-4 15" stroke="url(#lcLogo)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+              <defs>
+                <linearGradient id="lcLogo" x1="3" y1="4.5" x2="21" y2="19.5" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#39d353"/><stop offset="1" stopColor="#58a6ff"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </Link>
+
+          <Link href="/problems" className={styles.lcProblemListBtn}>
+            <Menu size={14} />
+            <span>Problem List</span>
+          </Link>
+
+          <div className={styles.lcNavArrows}>
+            <button 
+              type="button" 
+              className={styles.lcNavArrowBtn} 
+              onClick={handlePrevProblem} 
+              title={prevProblem ? `Previous: ${prevProblem.title}` : "Previous Problem"}
+              disabled={problemList.length <= 1}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button 
+              type="button" 
+              className={styles.lcNavArrowBtn} 
+              onClick={handleNextProblem} 
+              title={nextProblem ? `Next: ${nextProblem.title}` : "Next Problem"}
+              disabled={problemList.length <= 1}
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button 
+              type="button" 
+              className={styles.lcNavArrowBtn} 
+              onClick={handleRandomProblem} 
+              title="Pick Random Problem"
+              disabled={problemList.length <= 1}
+            >
+              <Shuffle size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Center: Run & Submit Buttons (Centered to the screen) */}
+        <div className={styles.lcTopCenter}>
+          <button 
+            type="button" 
+            className={styles.lcTopRunBtn} 
+            onClick={() => handleRun()}
+            disabled={isRunning || isSubmitting}
+            title="Run code against testcase"
+          >
+            <Play size={12} fill="currentColor" />
+            <span>{isRunning ? 'Running...' : 'Run'}</span>
+          </button>
+
+          <button 
+            type="button" 
+            className={styles.lcTopSubmitBtn} 
+            onClick={handleSubmit}
+            disabled={isRunning || isSubmitting}
+            title="Submit solution"
+          >
+            <UploadCloud size={14} />
+            <span>{isSubmitting ? 'Pending...' : 'Submit'}</span>
+          </button>
+        </div>
+
+        {/* Right: Streak & Profile */}
+        <div className={styles.lcTopRight}>
+          {user?.stats?.streak !== undefined && (
+            <div className={styles.lcTopStreakPill} title={`${user.stats.streak} day streak`}>
+              <Flame size={14} color="#f97316" />
+              <span>{user.stats.streak}</span>
+            </div>
+          )}
+
+          {user ? (
+            <Link 
+              href={user.username ? `/profile/${encodeURIComponent(user.username)}` : '/profile'} 
+              className={styles.lcUserAvatar} 
+              title={user.username ? `Profile (${user.username})` : 'My Profile'}
+            >
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.username} />
+              ) : (
+                <span>{user.username ? user.username[0]?.toUpperCase() : 'U'}</span>
+              )}
+            </Link>
+          ) : (
+            <Link href="/auth/login" className={styles.lcSignInBtn}>
+              Sign In
+            </Link>
+          )}
+        </div>
+      </header>
+
       <Group orientation="horizontal" className={styles.splitLayout}>
         {/* LEFT PANEL */}
-        <Panel defaultSize={45} minSize={20} className={styles.leftPanel}>
+        <Panel defaultSize={50} minSize={20} className={styles.leftPanel}>
           <div className={styles.leftTabs}>
             <button 
               className={`${styles.leftTab} ${activeLeftTab === 'question' ? styles.activeTab : ''}`}
@@ -383,20 +585,18 @@ export default function ProblemSolvePage() {
             >
               <MessageSquare size={14} /> Discuss {discussions.length > 0 && `(${discussions.length})`}
             </button>
-            <button 
-              className={`${styles.leftTab} ${activeLeftTab === 'ai-review' ? styles.activeTab : ''}`}
-              onClick={() => setActiveLeftTab('ai-review')}
-            >
-              <Sparkles size={14} color="#c084fc" /> AI Review
-            </button>
           </div>
 
           <div className={styles.leftContent} data-lenis-prevent="true">
             {activeLeftTab === 'question' && (
               <>
                 <div className={styles.problemHeader}>
-                  <h1 className={styles.title}>{problem.title}</h1>
-                  {isSolved && <span className={styles.solvedIcon}>✓</span>}
+                  <h1 className={styles.title}>
+                    {problem.questionId
+                      ? (/^\d+\./.test(problem.title) ? problem.title : `${problem.questionId}. ${problem.title}`)
+                      : problem.title}
+                  </h1>
+                  {isSolved && <CheckCircle2 size={20} color="var(--accent-green)" />}
                 </div>
                 
                 <div className={styles.badges}>
@@ -420,7 +620,9 @@ export default function ProblemSolvePage() {
                       <span style={{ fontWeight: 600, color: '#a78bfa', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <Lightbulb size={15} /> Hints
                       </span>
-                      <button onClick={() => setShowHint(false)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}>✕</button>
+                      <button onClick={() => setShowHint(false)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <X size={15} />
+                      </button>
                     </div>
                     {problem.hints.map((h, i) => (
                       <p key={i} style={{ fontSize: '0.9rem', color: '#e6edf3', margin: '6px 0' }}>• {h}</p>
@@ -430,7 +632,13 @@ export default function ProblemSolvePage() {
 
                 <div className={styles.markdownBody}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {problem.description?.replace(new RegExp(`^#+\\s*${problem.title.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\s*\\n+`, 'i'), '') || problem.description}
+                    {problem.description
+                      ? (() => {
+                          const text = problem.description.replace(/\\n/g, '\n').replace(/\\r/g, '');
+                          const escapedTitle = problem.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                          return text.replace(new RegExp(`^#+\\s*${escapedTitle}\\s*\\n*`, 'i'), '').trim();
+                        })()
+                      : ''}
                   </ReactMarkdown>
                 </div>
               </>
@@ -503,418 +711,709 @@ export default function ProblemSolvePage() {
               </div>
             )}
 
-            {/* AI CODE REVIEW TAB */}
-            {activeLeftTab === 'ai-review' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={18} color="#c084fc" /> AI Code Review
-                  </h3>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)', fontSize: '0.78rem' }}
-                    onClick={handleAIReview}
-                    disabled={isReviewing}
-                  >
-                    {isReviewing ? 'Analyzing...' : 'Re-analyze Code'}
-                  </button>
-                </div>
 
-                {isReviewing ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 12 }}>
-                    <div className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }} />
-                    <p style={{ fontSize: '0.85rem', color: '#a78bfa' }}>AI engine analyzing asymptotic complexity, logic errors, and optimization avenues...</p>
-                  </div>
-                ) : !aiReview ? (
-                  <div style={{ padding: '30px 16px', textAlign: 'center', background: '#161b22', border: '1px dashed #30363d', borderRadius: 8 }}>
-                    <Sparkles size={28} color="#a78bfa" style={{ marginBottom: 8 }} />
-                    <p style={{ color: '#e6edf3', fontSize: '0.9rem', marginBottom: 6, fontWeight: 600 }}>Ready to Review Your Solution</p>
-                    <p style={{ color: '#8b949e', fontSize: '0.8rem', marginBottom: 16 }}>Click the button below to get an instant AI evaluation of bugs, time/space complexity, and code quality.</p>
-                    <button className="btn btn-primary btn-sm" onClick={handleAIReview}>
-                      <Sparkles size={14} /> Analyze Code Now
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {/* Score / Grade Header */}
-                    <div style={{
-                      background: '#161b22',
-                      border: '1px solid #30363d',
-                      borderRadius: 8,
-                      padding: 14,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16
-                    }}>
+            {/* DISCUSSION FORUM TAB */}
+            {activeLeftTab === 'discuss' && (() => {
+              const filteredDiscussions = discussions.filter((t) => {
+                if (!discussSearch.trim()) return true;
+                const q = discussSearch.toLowerCase();
+                const titleMatch = t.title?.toLowerCase().includes(q);
+                const contentMatch = t.content?.toLowerCase().includes(q);
+                const authorUsername = typeof t.authorId === 'object' && t.authorId !== null ? t.authorId.username : '';
+                const authorMatch = authorUsername?.toLowerCase().includes(q);
+                return titleMatch || contentMatch || authorMatch;
+              });
+
+              return (
+                <div className={styles.discussWrapper}>
+                  {/* Header Row */}
+                  <div className={styles.discussHeader}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: '50%',
-                        background: aiReview.overallRating === 'A' ? 'rgba(57, 211, 83, 0.15)' : aiReview.overallRating === 'B' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(248, 81, 73, 0.15)',
-                        border: `2px solid ${aiReview.overallRating === 'A' ? '#39d353' : aiReview.overallRating === 'B' ? '#38bdf8' : '#f85149'}`,
-                        color: aiReview.overallRating === 'A' ? '#39d353' : aiReview.overallRating === 'B' ? '#38bdf8' : '#f85149',
+                        width: 28,
+                        height: 28,
+                        borderRadius: 6,
+                        background: 'rgba(56, 189, 248, 0.12)',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '1.4rem',
-                        fontWeight: 800,
-                        flexShrink: 0
                       }}>
-                        {aiReview.overallRating}
+                        <MessageSquare size={16} color="#38bdf8" />
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#fff' }}>
-                          Overall Solution Rating: Grade {aiReview.overallRating}
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#8b949e', marginTop: 2 }}>
-                          {aiReview.summary}
-                        </div>
-                      </div>
+                      <h3 className={styles.discussHeading}>
+                        Community Discussion
+                      </h3>
+                      <span className={styles.discussCountBadge}>
+                        {discussions.length} {discussions.length === 1 ? 'post' : 'posts'}
+                      </span>
                     </div>
 
-                    {/* Complexity Metric Cards */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, padding: 12 }}>
-                        <div style={{ fontSize: '0.72rem', color: '#8b949e', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                          <Clock size={12} color="#38bdf8" /> Time Complexity
-                        </div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#38bdf8' }}>
-                          {aiReview.timeComplexity}
-                        </div>
-                      </div>
-                      <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, padding: 12 }}>
-                        <div style={{ fontSize: '0.72rem', color: '#8b949e', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                          <Cpu size={12} color="#c084fc" /> Space Complexity
-                        </div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#c084fc' }}>
-                          {aiReview.spaceComplexity}
-                        </div>
-                      </div>
-                    </div>
-
-                    <p style={{ fontSize: '0.78rem', color: '#8b949e', background: 'rgba(56, 189, 248, 0.05)', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                      {aiReview.complexityExplanation}
-                    </p>
-
-                    {/* Bugs Identified */}
-                    {aiReview.detectedBugs && aiReview.detectedBugs.length > 0 && (
-                      <div>
-                        <h4 style={{ fontSize: '0.85rem', color: '#f85149', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontWeight: 600 }}>
-                          <Bug size={14} /> Potential Bugs & Pitfalls
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {aiReview.detectedBugs.map((b: any, idx: number) => (
-                            <div key={idx} style={{ background: 'rgba(248, 81, 73, 0.08)', border: '1px solid rgba(248, 81, 73, 0.3)', borderRadius: 6, padding: 10 }}>
-                              <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#f85149' }}>{b.title}</div>
-                              <div style={{ fontSize: '0.75rem', color: '#c9d1d9', marginTop: 3 }}>{b.description}</div>
-                              {b.suggestedFix && (
-                                <div style={{ fontSize: '0.72rem', color: '#39d353', marginTop: 4 }}>Fix: {b.suggestedFix}</div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Inefficiencies */}
-                    {aiReview.inefficiencies && aiReview.inefficiencies.length > 0 && (
-                      <div>
-                        <h4 style={{ fontSize: '0.85rem', color: '#e3b341', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontWeight: 600 }}>
-                          <Zap size={14} /> Performance Inefficiencies
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {aiReview.inefficiencies.map((ineff: any, idx: number) => (
-                            <div key={idx} style={{ background: 'rgba(227, 179, 65, 0.08)', border: '1px solid rgba(227, 179, 65, 0.3)', borderRadius: 6, padding: 10 }}>
-                              <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#e3b341' }}>{ineff.title} ({ineff.impact})</div>
-                              <div style={{ fontSize: '0.75rem', color: '#c9d1d9', marginTop: 3 }}>{ineff.explanation}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Suggestions */}
-                    {aiReview.improvements && aiReview.improvements.length > 0 && (
-                      <div>
-                        <h4 style={{ fontSize: '0.85rem', color: '#fff', marginBottom: 8, fontWeight: 600 }}>
-                          Suggested Improvements
-                        </h4>
-                        <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {aiReview.improvements.map((imp: string, idx: number) => (
-                            <li key={idx} style={{ fontSize: '0.78rem', color: '#8b949e' }}>
-                              {imp}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* DISCUSSION FORUM TAB */}
-            {activeLeftTab === 'discuss' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <MessageSquare size={16} color="#38bdf8" /> Community Discussion
-                  </h3>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4 }}
-                    onClick={() => setShowNewThread(!showNewThread)}
-                  >
-                    <Plus size={14} /> {showNewThread ? 'Cancel' : 'New Post'}
-                  </button>
-                </div>
-
-                {/* Category filters */}
-                <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 4 }}>
-                  {['all', 'question', 'approach', 'edge-case', 'bug'].map((cat) => (
                     <button
-                      key={cat}
-                      style={{
-                        padding: '4px 10px',
-                        fontSize: '0.72rem',
-                        borderRadius: 14,
-                        border: '1px solid #30363d',
-                        background: discussCategory === cat ? '#38bdf8' : '#161b22',
-                        color: discussCategory === cat ? '#000' : '#8b949e',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        textTransform: 'capitalize',
-                      }}
-                      onClick={() => setDiscussCategory(cat)}
+                      className={`${styles.discussNewBtn} ${showNewThread ? styles.discussNewBtnCancel : styles.discussNewBtnPrimary}`}
+                      onClick={() => setShowNewThread(!showNewThread)}
                     >
-                      {cat}
+                      {showNewThread ? <X size={14} /> : <Plus size={14} />}
+                      {showNewThread ? 'Cancel' : 'New Post'}
                     </button>
-                  ))}
-                </div>
+                  </div>
 
-                {/* New Thread Form */}
-                {showNewThread && (
-                  <form onSubmit={handleCreateDiscussion} style={{ background: '#161b22', border: '1px solid #38bdf8', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-                    <h4 style={{ fontSize: '0.88rem', fontWeight: 600, color: '#fff', marginBottom: 10 }}>Ask a Question or Share an Approach</h4>
-                    <input
-                      type="text"
-                      placeholder="Title (e.g. O(N) Hash Map approach with edge cases)"
-                      value={newThreadTitle}
-                      onChange={(e) => setNewThreadTitle(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, color: '#fff', fontSize: '0.8rem', marginBottom: 8 }}
-                      required
-                    />
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                      <select
-                        value={newThreadCat}
-                        onChange={(e: any) => setNewThreadCat(e.target.value)}
-                        style={{ padding: '6px 10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, color: '#fff', fontSize: '0.75rem' }}
-                      >
-                        <option value="question">Question</option>
-                        <option value="approach">Approach</option>
-                        <option value="edge-case">Edge Case</option>
-                        <option value="bug">Bug Report</option>
-                      </select>
+                  {/* Search & Sort Bar */}
+                  <div className={styles.discussFilterBar}>
+                    <div className={styles.discussSearchBox}>
+                      <Search size={14} className={styles.discussSearchIcon} />
+                      <input
+                        type="text"
+                        className={styles.discussSearchInput}
+                        placeholder="Search questions, approaches, bugs..."
+                        value={discussSearch}
+                        onChange={(e) => setDiscussSearch(e.target.value)}
+                      />
                     </div>
-                    <textarea
-                      placeholder="Write your explanation or query in markdown..."
-                      rows={4}
-                      value={newThreadContent}
-                      onChange={(e) => setNewThreadContent(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, color: '#fff', fontSize: '0.8rem', marginBottom: 10, resize: 'vertical' }}
-                      required
-                    />
-                    <button type="submit" className="btn btn-primary btn-sm" style={{ fontSize: '0.78rem' }}>
-                      Publish to Discussion
-                    </button>
-                  </form>
-                )}
 
-                {/* Discussion Thread List */}
-                {loadingDiscussions ? (
-                  <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-                    <div className="spinner" style={{ width: 24, height: 24 }} />
+                    <div className={styles.discussSortBar}>
+                      <button
+                        className={`${styles.discussSortBtn} ${discussSort === 'newest' ? styles.discussSortBtnActive : ''}`}
+                        onClick={() => setDiscussSort('newest')}
+                        title="Sort by latest posted"
+                      >
+                        <Clock size={12} /> Newest
+                      </button>
+                      <button
+                        className={`${styles.discussSortBtn} ${discussSort === 'top' ? styles.discussSortBtnActive : ''}`}
+                        onClick={() => setDiscussSort('top')}
+                        title="Sort by most upvoted"
+                      >
+                        <Flame size={12} /> Top
+                      </button>
+                    </div>
                   </div>
-                ) : discussions.length === 0 ? (
-                  <div style={{ padding: 24, textAlign: 'center', color: '#8b949e', fontSize: '0.82rem', background: '#161b22', borderRadius: 8, border: '1px dashed #30363d' }}>
-                    No discussions found in this category. Be the first to start a conversation!
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {discussions.map((t) => {
-                      const isExpanded = expandedThreadId === t._id;
-                      const hasUpvoted = user && t.upvotes?.includes(user.id);
+
+                  {/* Category filters */}
+                  <div className={styles.discussPillsRow}>
+                    {[
+                      { id: 'all', label: 'All', icon: MessageSquare, color: '#38bdf8', activeBg: 'rgba(56, 189, 248, 0.15)', activeBorder: '#38bdf8' },
+                      { id: 'question', label: 'Question', icon: HelpCircle, color: '#38bdf8', activeBg: 'rgba(56, 189, 248, 0.15)', activeBorder: '#38bdf8' },
+                      { id: 'approach', label: 'Approach', icon: Lightbulb, color: '#34d399', activeBg: 'rgba(52, 211, 153, 0.15)', activeBorder: '#34d399' },
+                      { id: 'edge-case', label: 'Edge-Case', icon: AlertCircle, color: '#fbbf24', activeBg: 'rgba(251, 191, 36, 0.15)', activeBorder: '#fbbf24' },
+                      { id: 'bug', label: 'Bug', icon: Bug, color: '#f43f5e', activeBg: 'rgba(244, 63, 94, 0.15)', activeBorder: '#f43f5e' },
+                    ].map((cat) => {
+                      const IconComponent = cat.icon;
+                      const isActive = discussCategory === cat.id;
                       return (
-                        <div key={t._id} style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 8, padding: 12 }}>
-                          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                            {/* Upvote button */}
-                            <button
-                              style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: 2,
-                                background: hasUpvoted ? 'rgba(56, 189, 248, 0.15)' : '#0d1117',
-                                border: `1px solid ${hasUpvoted ? '#38bdf8' : '#30363d'}`,
-                                color: hasUpvoted ? '#38bdf8' : '#8b949e',
-                                borderRadius: 6,
-                                padding: '6px 8px',
-                                cursor: 'pointer',
-                                minWidth: 36,
-                              }}
-                              onClick={() => handleToggleUpvote(t._id)}
-                              title="Upvote discussion"
-                            >
-                              <ThumbsUp size={13} />
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>{t.upvotes?.length || 0}</span>
-                            </button>
-
-                            {/* Thread Body */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                                <span style={{
-                                  fontSize: '0.68rem',
-                                  padding: '2px 6px',
-                                  borderRadius: 4,
-                                  background: t.category === 'approach' ? 'rgba(57, 211, 83, 0.15)' : 'rgba(56, 189, 248, 0.15)',
-                                  color: t.category === 'approach' ? '#39d353' : '#38bdf8',
-                                  fontWeight: 600,
-                                  textTransform: 'uppercase'
-                                }}>
-                                  {t.category}
-                                </span>
-                                {t.isSolved && (
-                                  <span style={{ fontSize: '0.68rem', color: '#39d353', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                                    ✓ Solved
-                                  </span>
-                                )}
-                                <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>
-                                  by <strong style={{ color: '#c9d1d9' }}>{t.authorId?.username || 'User'}</strong>
-                                </span>
-                              </div>
-
-                              <div
-                                style={{ fontWeight: 600, fontSize: '0.88rem', color: '#fff', cursor: 'pointer', marginBottom: 4 }}
-                                onClick={() => setExpandedThreadId(isExpanded ? null : t._id)}
-                              >
-                                {t.title}
-                              </div>
-
-                              <p style={{ fontSize: '0.78rem', color: '#8b949e', margin: '4px 0 8px 0', lineHeight: 1.4 }}>
-                                {t.content}
-                              </p>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <button
-                                  className="btn btn-ghost btn-sm"
-                                  style={{ fontSize: '0.72rem', padding: '3px 8px', color: '#58a6ff' }}
-                                  onClick={() => setExpandedThreadId(isExpanded ? null : t._id)}
-                                >
-                                  {t.replies?.length || 0} replies {isExpanded ? '▴' : '▾'}
-                                </button>
-                              </div>
-
-                              {/* Expanded replies section */}
-                              {isExpanded && (
-                                <div style={{ marginTop: 12, borderTop: '1px solid #30363d', paddingTop: 10 }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-                                    {(!t.replies || t.replies.length === 0) ? (
-                                      <p style={{ fontSize: '0.75rem', color: '#6e7681' }}>No replies yet. Leave your thoughts below!</p>
-                                    ) : (
-                                      t.replies.map((rep: any) => (
-                                        <div
-                                          key={rep._id}
-                                          style={{
-                                            background: rep.isAccepted ? 'rgba(57, 211, 83, 0.08)' : '#0d1117',
-                                            border: `1px solid ${rep.isAccepted ? '#39d353' : '#21262d'}`,
-                                            borderRadius: 6,
-                                            padding: '8px 10px',
-                                          }}
-                                        >
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                            <span style={{ fontSize: '0.72rem', color: '#8b949e' }}>
-                                              <strong style={{ color: '#fff' }}>{rep.authorId?.username || 'User'}</strong>
-                                              {rep.authorId?.role === 'instructor' && (
-                                                <span style={{ marginLeft: 4, background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 4px', borderRadius: 4, fontSize: '0.65rem' }}>Instructor</span>
-                                              )}
-                                            </span>
-                                            {(user?.id === t.authorId?._id || user?.role === 'instructor' || user?.role === 'admin') && (
-                                              <button
-                                                style={{
-                                                  background: 'none',
-                                                  border: 'none',
-                                                  color: rep.isAccepted ? '#39d353' : '#6e7681',
-                                                  fontSize: '0.7rem',
-                                                  cursor: 'pointer',
-                                                  display: 'flex',
-                                                  alignItems: 'center',
-                                                  gap: 3,
-                                                }}
-                                                onClick={() => handleAcceptReply(t._id, rep._id)}
-                                                title="Toggle accepted answer"
-                                              >
-                                                <CheckCircle2 size={12} /> {rep.isAccepted ? 'Accepted Solution' : 'Accept as Solution'}
-                                              </button>
-                                            )}
-                                          </div>
-                                          <div style={{ fontSize: '0.78rem', color: '#c9d1d9', lineHeight: 1.35 }}>
-                                            {rep.content}
-                                          </div>
-                                        </div>
-                                      ))
-                                    )}
-                                  </div>
-
-                                  {/* Reply input */}
-                                  <div style={{ display: 'flex', gap: 6 }}>
-                                    <input
-                                      type="text"
-                                      placeholder="Write a helpful answer or observation..."
-                                      value={replyText}
-                                      onChange={(e) => setReplyText(e.target.value)}
-                                      style={{ flex: 1, padding: '6px 10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, color: '#fff', fontSize: '0.75rem' }}
-                                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddReply(t._id); }}
-                                    />
-                                    <button
-                                      className="btn btn-primary btn-sm"
-                                      style={{ fontSize: '0.72rem', padding: '6px 10px' }}
-                                      onClick={() => handleAddReply(t._id)}
-                                    >
-                                      Reply
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                        <button
+                          key={cat.id}
+                          className={styles.discussCategoryPill}
+                          style={{
+                            background: isActive ? cat.activeBg : '#161b22',
+                            borderColor: isActive ? cat.activeBorder : '#30363d',
+                            color: isActive ? cat.color : '#8b949e',
+                          }}
+                          onClick={() => setDiscussCategory(cat.id)}
+                        >
+                          <IconComponent size={12} color={isActive ? cat.color : '#8b949e'} />
+                          {cat.label}
+                        </button>
                       );
                     })}
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* New Thread Form */}
+                  {showNewThread && (
+                    <form onSubmit={handleCreateDiscussion} className={styles.discussNewFormCard}>
+                      <div className={styles.discussFormTitle}>
+                        <Sparkles size={15} color="#38bdf8" /> Start a Discussion
+                      </div>
+                      <div className={styles.discussFormSubtitle}>
+                        Ask for clarification, share your solution approach, or discuss tricky edge cases.
+                      </div>
+
+                      <div style={{ marginBottom: 12 }}>
+                        <input
+                          type="text"
+                          placeholder="Title (e.g. O(N) Hash Map approach with memory analysis)"
+                          value={newThreadTitle}
+                          onChange={(e) => setNewThreadTitle(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '9px 12px',
+                            background: '#0d1117',
+                            border: '1px solid #30363d',
+                            borderRadius: 6,
+                            color: '#fff',
+                            fontSize: '0.82rem',
+                            outline: 'none',
+                          }}
+                          required
+                        />
+                      </div>
+
+                      {/* Category Selector Pills in form */}
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ display: 'block', fontSize: '0.72rem', color: '#8b949e', marginBottom: 6, fontWeight: 600 }}>
+                          Select Category
+                        </label>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {[
+                            { id: 'question', label: 'Question', icon: HelpCircle, color: '#38bdf8' },
+                            { id: 'approach', label: 'Approach', icon: Lightbulb, color: '#34d399' },
+                            { id: 'edge-case', label: 'Edge Case', icon: AlertCircle, color: '#fbbf24' },
+                            { id: 'bug', label: 'Bug Report', icon: Bug, color: '#f43f5e' },
+                          ].map((c) => {
+                            const IconComp = c.icon;
+                            const isSel = newThreadCat === c.id;
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => setNewThreadCat(c.id as any)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  padding: '5px 11px',
+                                  fontSize: '0.73rem',
+                                  fontWeight: 600,
+                                  borderRadius: 6,
+                                  border: `1px solid ${isSel ? c.color : '#30363d'}`,
+                                  background: isSel ? 'rgba(56, 189, 248, 0.12)' : '#0d1117',
+                                  color: isSel ? c.color : '#8b949e',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <IconComp size={12} color={isSel ? c.color : '#8b949e'} />
+                                {c.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: 14 }}>
+                        <textarea
+                          placeholder="Explain your approach, question, or findings... (Markdown supported)"
+                          rows={4}
+                          value={newThreadContent}
+                          onChange={(e) => setNewThreadContent(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '9px 12px',
+                            background: '#0d1117',
+                            border: '1px solid #30363d',
+                            borderRadius: 6,
+                            color: '#fff',
+                            fontSize: '0.82rem',
+                            lineHeight: 1.5,
+                            outline: 'none',
+                            resize: 'vertical',
+                          }}
+                          required
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowNewThread(false)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '0.75rem',
+                            background: 'transparent',
+                            border: '1px solid #30363d',
+                            color: '#8b949e',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className={`${styles.discussNewBtn} ${styles.discussNewBtnPrimary}`}
+                          style={{ fontSize: '0.76rem', padding: '6px 14px' }}
+                        >
+                          <Send size={13} /> Publish Discussion
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Discussion Thread List */}
+                  {loadingDiscussions ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: 36 }}>
+                      <div className="spinner" style={{ width: 28, height: 28 }} />
+                    </div>
+                  ) : filteredDiscussions.length === 0 ? (
+                    <div style={{
+                      padding: '36px 20px',
+                      textAlign: 'center',
+                      background: '#161b22',
+                      borderRadius: 10,
+                      border: '1px dashed #30363d',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}>
+                      <div style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: '50%',
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        <MessageSquare size={20} color="#38bdf8" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f0f6fc', marginBottom: 4 }}>
+                          {discussSearch ? 'No matching discussions found' : 'No discussions yet'}
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: '#8b949e', maxWidth: 320 }}>
+                          {discussSearch
+                            ? `No posts matched "${discussSearch}". Try clearing your search or picking another category.`
+                            : 'Be the first to ask a question, share an optimal solution, or report tricky edge cases!'}
+                        </div>
+                      </div>
+                      {!discussSearch && (
+                        <button
+                          className={`${styles.discussNewBtn} ${styles.discussNewBtnPrimary}`}
+                          style={{ marginTop: 6 }}
+                          onClick={() => setShowNewThread(true)}
+                        >
+                          <Plus size={14} /> Start Discussion
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {filteredDiscussions.map((t) => {
+                        const isExpanded = expandedThreadId === t._id;
+                        const hasUpvoted = user && t.upvotes?.includes(user.id);
+                        const author = typeof t.authorId === 'object' && t.authorId !== null ? t.authorId : null;
+                        const authorUsername = author?.username || 'User';
+                        const authorAvatar = author?.avatar;
+                        const authorRole = author?.role;
+
+                        // Category styles & icon
+                        const catStyle = t.category === 'approach'
+                          ? { bg: 'rgba(52, 211, 153, 0.12)', border: 'rgba(52, 211, 153, 0.25)', text: '#34d399', icon: Lightbulb }
+                          : t.category === 'edge-case'
+                          ? { bg: 'rgba(251, 191, 36, 0.12)', border: 'rgba(251, 191, 36, 0.25)', text: '#fbbf24', icon: AlertCircle }
+                          : t.category === 'bug'
+                          ? { bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.25)', text: '#f43f5e', icon: Bug }
+                          : { bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.25)', text: '#38bdf8', icon: HelpCircle };
+                        const CatIcon = catStyle.icon;
+
+                        return (
+                          <div key={t._id} className={styles.discussCard}>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                              {/* Upvote capsule */}
+                              <button
+                                className={styles.discussUpvoteCapsule}
+                                style={{
+                                  background: hasUpvoted ? 'rgba(56, 189, 248, 0.15)' : '#0d1117',
+                                  border: `1px solid ${hasUpvoted ? '#38bdf8' : '#30363d'}`,
+                                  color: hasUpvoted ? '#38bdf8' : '#8b949e',
+                                }}
+                                onClick={() => handleToggleUpvote(t._id)}
+                                title={hasUpvoted ? 'Remove upvote' : 'Upvote discussion'}
+                              >
+                                <ThumbsUp size={13} />
+                                <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>
+                                  {t.upvotes?.length || 0}
+                                </span>
+                              </button>
+
+                              {/* Thread Body */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                {/* Meta row: Author info + Time on left, Category pill + Solved on right */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    {/* Author avatar & link */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      {authorAvatar ? (
+                                        <img
+                                          src={authorAvatar}
+                                          alt={authorUsername}
+                                          style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }}
+                                        />
+                                      ) : (
+                                        <div
+                                          style={{
+                                            width: 20,
+                                            height: 20,
+                                            borderRadius: '50%',
+                                            background: getAvatarGradient(authorUsername),
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '0.62rem',
+                                            fontWeight: 700,
+                                            color: '#fff',
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          {authorUsername.charAt(0).toUpperCase()}
+                                        </div>
+                                      )}
+
+                                      <Link
+                                        href={`/profile/${encodeURIComponent(authorUsername)}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{
+                                          color: '#58a6ff',
+                                          fontSize: '0.76rem',
+                                          fontWeight: 600,
+                                          textDecoration: 'none',
+                                        }}
+                                        title={`View ${authorUsername}'s profile`}
+                                      >
+                                        {authorUsername}
+                                      </Link>
+
+                                      {authorRole === 'instructor' && (
+                                        <span style={{
+                                          fontSize: '0.62rem',
+                                          fontWeight: 600,
+                                          padding: '1px 5px',
+                                          borderRadius: 4,
+                                          background: 'rgba(168, 85, 247, 0.15)',
+                                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                                          color: '#c084fc',
+                                        }}>
+                                          Instructor
+                                        </span>
+                                      )}
+                                      {authorRole === 'admin' && (
+                                        <span style={{
+                                          fontSize: '0.62rem',
+                                          fontWeight: 600,
+                                          padding: '1px 5px',
+                                          borderRadius: 4,
+                                          background: 'rgba(251, 191, 36, 0.15)',
+                                          border: '1px solid rgba(251, 191, 36, 0.3)',
+                                          color: '#fbbf24',
+                                        }}>
+                                          Admin
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <span style={{ fontSize: '0.7rem', color: '#6e7681', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                      <Clock size={11} /> {formatTimeAgo(t.createdAt)}
+                                    </span>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span
+                                      style={{
+                                        fontSize: '0.66rem',
+                                        padding: '2px 7px',
+                                        borderRadius: 4,
+                                        background: catStyle.bg,
+                                        border: `1px solid ${catStyle.border}`,
+                                        color: catStyle.text,
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.04em',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <CatIcon size={11} />
+                                      {t.category}
+                                    </span>
+
+                                    {t.isSolved && (
+                                      <span style={{
+                                        fontSize: '0.66rem',
+                                        color: '#34d399',
+                                        background: 'rgba(52, 211, 153, 0.1)',
+                                        border: '1px solid rgba(52, 211, 153, 0.25)',
+                                        padding: '2px 6px',
+                                        borderRadius: 4,
+                                        fontWeight: 600,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                      }}>
+                                        <CheckCircle2 size={11} /> Solved
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Title */}
+                                <div
+                                  className={styles.discussThreadTitle}
+                                  onClick={() => setExpandedThreadId(isExpanded ? null : t._id)}
+                                >
+                                  {t.title}
+                                </div>
+
+                                {/* Snippet */}
+                                <div className={styles.discussThreadSnippet}>
+                                  {t.content}
+                                </div>
+
+                                {/* Footer Actions */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                  <button
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 5,
+                                      fontSize: '0.74rem',
+                                      fontWeight: 600,
+                                      color: isExpanded ? '#38bdf8' : '#58a6ff',
+                                      background: isExpanded ? 'rgba(56, 189, 248, 0.1)' : 'rgba(88, 166, 255, 0.08)',
+                                      border: `1px solid ${isExpanded ? 'rgba(56, 189, 248, 0.25)' : 'rgba(88, 166, 255, 0.18)'}`,
+                                      borderRadius: 6,
+                                      padding: '4px 9px',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                    onClick={() => setExpandedThreadId(isExpanded ? null : t._id)}
+                                  >
+                                    <MessageSquare size={12} />
+                                    <span>{t.replies?.length || 0} {t.replies?.length === 1 ? 'reply' : 'replies'}</span>
+                                    {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                  </button>
+
+                                  <button
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#8b949e',
+                                      fontSize: '0.72rem',
+                                      cursor: 'pointer',
+                                      padding: '4px 6px',
+                                    }}
+                                    onClick={() => setExpandedThreadId(t._id)}
+                                  >
+                                    Reply
+                                  </button>
+                                </div>
+
+                                {/* Expanded replies section */}
+                                {isExpanded && (
+                                  <div className={styles.discussRepliesContainer}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+                                      {(!t.replies || t.replies.length === 0) ? (
+                                        <div style={{
+                                          padding: '10px 12px',
+                                          background: '#0d1117',
+                                          borderRadius: 6,
+                                          border: '1px dashed #21262d',
+                                          color: '#6e7681',
+                                          fontSize: '0.74rem',
+                                          textAlign: 'center',
+                                        }}>
+                                          No replies yet. Share your thoughts or answer below!
+                                        </div>
+                                      ) : (
+                                        t.replies.map((rep: any) => {
+                                          const repAuthor = typeof rep.authorId === 'object' && rep.authorId !== null ? rep.authorId : null;
+                                          const repUsername = repAuthor?.username || 'User';
+                                          const repAvatar = repAuthor?.avatar;
+                                          const repRole = repAuthor?.role;
+
+                                          return (
+                                            <div
+                                              key={rep._id}
+                                              className={`${styles.discussReplyCard} ${rep.isAccepted ? styles.discussReplyCardAccepted : ''}`}
+                                            >
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                  {repAvatar ? (
+                                                    <img
+                                                      src={repAvatar}
+                                                      alt={repUsername}
+                                                      style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }}
+                                                    />
+                                                  ) : (
+                                                    <div
+                                                      style={{
+                                                        width: 18,
+                                                        height: 18,
+                                                        borderRadius: '50%',
+                                                        background: getAvatarGradient(repUsername),
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '0.6rem',
+                                                        fontWeight: 700,
+                                                        color: '#fff',
+                                                        flexShrink: 0,
+                                                      }}
+                                                    >
+                                                      {repUsername.charAt(0).toUpperCase()}
+                                                    </div>
+                                                  )}
+
+                                                  <Link
+                                                    href={`/profile/${encodeURIComponent(repUsername)}`}
+                                                    style={{ color: '#58a6ff', fontSize: '0.74rem', fontWeight: 600, textDecoration: 'none' }}
+                                                    title={`View ${repUsername}'s profile`}
+                                                  >
+                                                    {repUsername}
+                                                  </Link>
+
+                                                  {repRole === 'instructor' && (
+                                                    <span style={{
+                                                      fontSize: '0.6rem',
+                                                      padding: '1px 4px',
+                                                      borderRadius: 4,
+                                                      background: 'rgba(168, 85, 247, 0.15)',
+                                                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                                                      color: '#c084fc',
+                                                      fontWeight: 600,
+                                                    }}>
+                                                      Instructor
+                                                    </span>
+                                                  )}
+
+                                                  <span style={{ fontSize: '0.68rem', color: '#6e7681', display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                    <Clock size={10} /> {formatTimeAgo(rep.createdAt)}
+                                                  </span>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                  {rep.isAccepted && (
+                                                    <span style={{
+                                                      fontSize: '0.68rem',
+                                                      color: '#34d399',
+                                                      fontWeight: 700,
+                                                      display: 'inline-flex',
+                                                      alignItems: 'center',
+                                                      gap: 3,
+                                                      background: 'rgba(52, 211, 153, 0.12)',
+                                                      padding: '2px 6px',
+                                                      borderRadius: 4,
+                                                      border: '1px solid rgba(52, 211, 153, 0.3)',
+                                                    }}>
+                                                      <CheckCircle2 size={11} /> Accepted Solution
+                                                    </span>
+                                                  )}
+
+                                                  {(user?.id === t.authorId?._id || user?.role === 'instructor' || user?.role === 'admin') && (
+                                                    <button
+                                                      style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        color: rep.isAccepted ? '#34d399' : '#6e7681',
+                                                        fontSize: '0.68rem',
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: 3,
+                                                        padding: '2px 4px',
+                                                      }}
+                                                      onClick={() => handleAcceptReply(t._id, rep._id)}
+                                                      title="Toggle accepted answer"
+                                                    >
+                                                      <CheckCircle2 size={11} /> {rep.isAccepted ? 'Accepted' : 'Accept Solution'}
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </div>
+
+                                              <div style={{ fontSize: '0.8rem', color: '#c9d1d9', lineHeight: 1.45, wordBreak: 'break-word' }}>
+                                                {rep.content}
+                                              </div>
+                                            </div>
+                                          );
+                                        })
+                                      )}
+                                    </div>
+
+                                    {/* Reply input */}
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                                      <div
+                                        style={{
+                                          width: 24,
+                                          height: 24,
+                                          borderRadius: '50%',
+                                          background: getAvatarGradient(user?.username),
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          fontSize: '0.65rem',
+                                          fontWeight: 700,
+                                          color: '#fff',
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {user?.username ? user.username.charAt(0).toUpperCase() : 'U'}
+                                      </div>
+
+                                      <input
+                                        type="text"
+                                        placeholder="Write a helpful answer or observation... (Enter to reply)"
+                                        value={replyText}
+                                        onChange={(e) => setReplyText(e.target.value)}
+                                        style={{
+                                          flex: 1,
+                                          padding: '7px 11px',
+                                          background: '#0d1117',
+                                          border: '1px solid #30363d',
+                                          borderRadius: 6,
+                                          color: '#fff',
+                                          fontSize: '0.78rem',
+                                          outline: 'none',
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleAddReply(t._id);
+                                        }}
+                                      />
+
+                                      <button
+                                        className={`${styles.discussNewBtn} ${styles.discussNewBtnPrimary}`}
+                                        style={{ fontSize: '0.74rem', padding: '6px 12px' }}
+                                        onClick={() => handleAddReply(t._id)}
+                                      >
+                                        <Send size={12} /> Reply
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </Panel>
 
         <Separator className={styles.resizeHandle} />
 
         {/* RIGHT PANEL - Modern VS Code Editor & Integrated Terminal */}
-        <Panel defaultSize={55} minSize={30} className={styles.rightPanel}>
+        <Panel defaultSize={50} minSize={20} className={styles.rightPanel}>
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
             {/* VS Code Tabs Bar */}
             <div className={styles.tabsBar}>
-              <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                <div className={styles.tabItem}>
-                  <FileLanguageIcon language={language} filename={LANG_FILE_MAP[language]} size={14} />
-                  <span>{LANG_FILE_MAP[language] || 'Solution'}</span>
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', height: '100%', paddingLeft: 8 }}>
+                <LanguageSelector value={language} onChange={handleLanguageChange} />
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 8 }}>
-                <LanguageSelector value={language} onChange={handleLanguageChange} />
-                
+                <button 
+                  className={styles.headerIconBtn} 
+                  title="Format Code"
+                  onClick={handleFormatCode}
+                >
+                  <Braces size={13} />
+                </button>
+
                 <button 
                   className={styles.headerIconBtn} 
                   title="Reset to default starter code"
@@ -928,51 +1427,18 @@ export default function ProblemSolvePage() {
 
                 <button 
                   className={styles.headerIconBtn} 
-                  title={showHint ? "Hide hint" : "Show hint"} 
-                  onClick={toggleHint}
-                  style={showHint ? { color: '#facc15' } : undefined}
+                  title="Toggle Fullscreen"
+                  onClick={() => {
+                    if (typeof document !== 'undefined') {
+                      if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(() => {});
+                      } else {
+                        document.exitFullscreen().catch(() => {});
+                      }
+                    }
+                  }}
                 >
-                  <Lightbulb size={13} />
-                </button>
-
-                <button 
-                  className={styles.headerIconBtn} 
-                  title="Toggle Integrated Terminal"
-                  onClick={() => setIsConsoleOpen(!isConsoleOpen)}
-                  style={isConsoleOpen ? { color: '#38bdf8' } : undefined}
-                >
-                  <TerminalIcon size={13} />
-                </button>
-
-                <button 
-                  className={styles.runButton}
-                  style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)', border: 'none', color: '#fff' }}
-                  onClick={handleAIReview}
-                  disabled={isReviewing}
-                  title="Run AI Code Review on your solution"
-                >
-                  <Sparkles size={12} />
-                  <span>{isReviewing ? 'Analyzing...' : 'AI Review'}</span>
-                </button>
-
-                <button 
-                  className={styles.runButton}
-                  onClick={() => handleRun()}
-                  disabled={isRunning || isSubmitting}
-                  title="Run code against testcase or stdin"
-                >
-                  <Play size={12} fill="currentColor" />
-                  <span>{isRunning ? 'Running...' : 'Run'}</span>
-                </button>
-
-                <button 
-                  className={styles.submitButton}
-                  onClick={handleSubmit}
-                  disabled={isRunning || isSubmitting}
-                  title="Submit code for evaluation"
-                >
-                  <Send size={12} />
-                  <span>{isSubmitting ? 'Judging...' : 'Submit'}</span>
+                  <Maximize2 size={13} />
                 </button>
               </div>
             </div>
@@ -981,30 +1447,28 @@ export default function ProblemSolvePage() {
             <div className={styles.breadcrumbsBar}>
               <span className={styles.breadcrumbItem}>problems</span>
               <span>›</span>
-              <span className={styles.breadcrumbItem}>{problem.slug}</span>
+              <span className={styles.breadcrumbItem}>
+                {problem.questionId ? `${problem.questionId}. ${problem.slug}` : problem.slug}
+              </span>
               <span>›</span>
               <span className={`${styles.breadcrumbItem} ${styles.breadcrumbActive}`}>
                 <FileLanguageIcon language={language} filename={LANG_FILE_MAP[language]} size={12} />
                 {LANG_FILE_MAP[language] || 'Solution'}
               </span>
-              {showHint && problem.hints && problem.hints.length > 0 && (
-                <div style={{ marginLeft: 'auto', color: '#facc15', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem' }}>
-                  <Lightbulb size={12} /> Hint: {problem.hints[0]}
-                </div>
-              )}
             </div>
 
             {/* Split Editor and Terminal */}
             <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
               {isConsoleOpen ? (
                 <Group orientation="vertical" style={{ height: '100%', width: '100%' }}>
-                  <Panel defaultSize={55} minSize={25} style={{ display: 'flex', flexDirection: 'column' }}>
+                  <Panel defaultSize={55} minSize={25} style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
                     <div className={styles.editorContainer}>
                       <CodeEditor 
                         value={code} 
                         onChange={setCode} 
                         language={language} 
                         height="100%" 
+                        borderless={true}
                         onCursorChange={(line, col) => setCursorPos({ line, col })}
                       />
                     </div>
@@ -1014,15 +1478,17 @@ export default function ProblemSolvePage() {
                     <div className={styles.handleBarHorizontal} />
                   </Separator>
 
-                  <Panel defaultSize={45} minSize={20} style={{ display: 'flex', flexDirection: 'column' }}>
-                    <VsCodeTerminal
-                      language={language}
-                      isRunning={isRunning || isSubmitting}
+                  <Panel defaultSize={45} minSize={20} style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }} data-lenis-prevent="true">
+                    <LeetCodeConsole
+                      problem={problem}
                       output={output}
-                      onSendInput={(stdinVal) => handleRun(stdinVal)}
-                      onClear={() => setOutput(null)}
+                      isRunning={isRunning || isSubmitting}
+                      customInput={customInput}
+                      onCustomInputChange={setCustomInput}
+                      onRun={() => handleRun()}
                       onClose={() => setIsConsoleOpen(false)}
-                      onRestart={() => handleRun()}
+                      activeTab={activeConsoleTab}
+                      setActiveTab={setActiveConsoleTab}
                     />
                   </Panel>
                 </Group>
@@ -1033,40 +1499,37 @@ export default function ProblemSolvePage() {
                     onChange={setCode} 
                     language={language} 
                     height="100%" 
+                    borderless={true}
                     onCursorChange={(line, col) => setCursorPos({ line, col })}
                   />
                 </div>
               )}
             </div>
 
-            {/* VS Code Bottom Status Bar */}
-            <div className={styles.statusBar}>
-              <div className={styles.statusLeft}>
-                <div className={styles.statusItem}>
-                  <GitBranch size={11} />
-                  <span>main*</span>
-                </div>
-                <div className={styles.statusItem}>
-                  <AlertCircle size={11} />
-                  <span>0</span>
-                </div>
-                <div 
-                  className={`${styles.statusItem} ${styles.statusItemInteractive}`}
+            {/* LeetCode Clean Bottom Bar */}
+            <div className={styles.statusBar} style={{ background: '#1a1a1a', borderTop: '1px solid #282828', height: 28, padding: '0 12px' }}>
+              <div className={styles.statusLeft} style={{ gap: 14 }}>
+                <button 
+                  type="button"
+                  className={styles.statusItem}
                   onClick={() => setIsConsoleOpen(!isConsoleOpen)}
-                  title="Toggle Integrated Terminal"
+                  style={{ background: 'transparent', border: 'none', color: '#8a8a8e', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, padding: 0 }}
+                  title="Toggle Testcase Console"
                 >
-                  <TerminalIcon size={11} />
-                  <span>Terminal</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#eff1f6' }}>Console</span>
+                  {isConsoleOpen ? <ChevronDown size={13} color="#8a8a8e" /> : <ChevronUp size={13} color="#8a8a8e" />}
+                </button>
+                <div className={styles.statusItem} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', color: '#8a8a8e' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2cbb5d', display: 'inline-block' }} />
+                  <span>Saved</span>
                 </div>
-                {isRunning && <span>Compiling &amp; Running...</span>}
-                {isSubmitting && <span>Evaluating Testcases...</span>}
+                {isRunning && <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>Running...</span>}
+                {isSubmitting && <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>Submitting...</span>}
               </div>
 
-              <div className={styles.statusRight}>
+              <div className={styles.statusRight} style={{ fontSize: '0.72rem', color: '#8a8a8e', gap: 12 }}>
                 <span>Ln {cursorPos.line}, Col {cursorPos.col}</span>
-                <span>Spaces: 4</span>
-                <span>UTF-8</span>
-                <span style={{ textTransform: 'uppercase', fontWeight: 600 }}>{language}</span>
+                <span style={{ textTransform: 'uppercase', fontWeight: 600, color: '#eff1f6' }}>{language}</span>
               </div>
             </div>
           </div>

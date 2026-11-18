@@ -1,0 +1,377 @@
+.consoleContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  width: 100%;
+  background: #1a1a1a;
+  color: #eff1f6;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  border-top: 1px solid #282828;
+  overscroll-behavior: contain;
+}
+
+.tabHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #282828;
+  padding: 0 12px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.leftTabs {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 100%;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #8a8a8e;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 4px;
+  height: 100%;
+  position: relative;
+  transition: color 0.15s ease;
+}
+
+.tabBtn:hover {
+  color: #eff1f6;
+}
+
+.tabBtnActive {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.tabBtnActive::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px 2px 0 0;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dotGreen {
+  background: #2cbb5d;
+}
+
+.dotRed {
+  background: #ef4743;
+}
+
+.rightControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controlBtn {
+  background: transparent;
+  border: none;
+  color: #8a8a8e;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.controlBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eff1f6;
+}
+
+/* Content Area */
+.consoleBody {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.consoleBody::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.consoleBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.consoleBody::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 4px;
+}
+
+.consoleBody::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+}
+
+/* Case Pills Row */
+.casePillsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.casePill {
+  background: #282828;
+  color: #eff1f6;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.casePill:hover {
+  background: #333333;
+}
+
+.casePillActive {
+  background: #383838;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.casePillPassed {
+  color: #2cbb5d;
+}
+
+.casePillFailed {
+  color: #ef4743;
+}
+
+.addCaseBtn {
+  background: transparent;
+  border: 1px dashed #404040;
+  color: #8a8a8e;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.addCaseBtn:hover {
+  border-color: #707070;
+  color: #eff1f6;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Parameter Blocks inside Testcase */
+.paramGroup {
+  margin-bottom: 12px;
+}
+
+.paramLabel {
+  font-size: 0.75rem;
+  color: #8a8a8e;
+  margin-bottom: 5px;
+  font-family: monospace;
+}
+
+.paramInput {
+  width: 100%;
+  background: #282828;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #eff1f6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  outline: none;
+  resize: vertical;
+  min-height: 38px;
+  line-height: 1.4;
+  transition: border-color 0.15s ease;
+}
+
+.paramInput:focus {
+  border-color: #38bdf8;
+  background: #242424;
+}
+
+/* Test Result View */
+.resultStatusHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.resultTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.statusAccepted {
+  color: #2cbb5d;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusFailed {
+  color: #ef4743;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusRunning {
+  color: #38bdf8;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resultMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: #8a8a8e;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metaValue {
+  color: #eff1f6;
+  font-weight: 600;
+}
+
+.errorBox {
+  background: rgba(239, 71, 67, 0.08);
+  border: 1px solid rgba(239, 71, 67, 0.25);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.errorTitle {
+  color: #ef4743;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.errorPre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  color: #ff8583;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+.ioBlock {
+  margin-bottom: 10px;
+}
+
+.ioBlockLabel {
+  font-size: 0.74rem;
+  color: #8a8a8e;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.ioBlockContent {
+  background: #282828;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82rem;
+  color: #eff1f6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ioBlockWrong {
+  color: #ff8583;
+  background: rgba(239, 71, 67, 0.12);
+  border: 1px solid rgba(239, 71, 67, 0.25);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 10px;
+  color: #8a8a8e;
+  font-size: 0.85rem;
+  gap: 10px;
+}
+
+.runNowBtn {
+  background: #2cbb5d;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.runNowBtn:hover {
+  background: #25a451;
+}

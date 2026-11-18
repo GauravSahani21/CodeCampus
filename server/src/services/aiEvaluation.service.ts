@@ -1,4 +1,3 @@
-import axios from 'axios';
 import Course from '../models/Course.model';
 import {
   IAIEvaluationReport,
@@ -138,75 +137,7 @@ function analyzeCodeMistakes(input: ProblemEvaluationInput): {
   };
 }
 
-// ─── Gemini LLM Integration (Optional Enhancement) ───────────────────────────
-async function callGeminiAnalysis(
-  input: ProblemEvaluationInput
-): Promise<{ mistakes: IAIEvaluationMistake[]; concepts: string[] } | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-
-  try {
-    const prompt = `You are an expert programming contest judge and computer science tutor.
-Analyze this student's submission and pinpoint the exact mistakes:
-Problem: ${input.problemTitle}
-Tags: ${input.tags.join(', ')}
-Language: ${input.language}
-Code:
-\`\`\`
-${input.code}
-\`\`\`
-
-Test results:
-Passed ${input.passedTestCases} / ${input.totalTestCases} test cases.
-Failed samples:
-${JSON.stringify(
-  input.testResults
-    .filter((t) => !t.passed)
-    .slice(0, 3)
-    .map((t) => ({ input: t.input, expected: t.expectedOutput, actual: t.actualOutput, error: t.error })),
-  null,
-  2
-)}
-
-Return STRICT JSON format:
-{
-  "mistakes": [
-    {
-      "problemTitle": "${input.problemTitle}",
-      "mistakeTitle": "Short title of the mistake",
-      "explanation": "Clear explanation of why it failed",
-      "fixSuggestion": "Constructive guidance on how to fix without spoonfeeding solution"
-    }
-  ],
-  "concepts": ["Concept 1", "Concept 2"]
-}`;
-
-    const res = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      },
-      { timeout: 8000 }
-    );
-
-    const jsonText = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (jsonText) {
-      const parsed = JSON.parse(jsonText);
-      if (Array.isArray(parsed.mistakes)) {
-        return {
-          mistakes: parsed.mistakes,
-          concepts: Array.isArray(parsed.concepts) ? parsed.concepts : input.tags,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Gemini evaluation fallback to heuristic engine:', (err as Error).message);
-  }
-  return null;
-}
-
-// ─── Main Evaluation Function ────────────────────────────────────────────────
+// ─── Main Evaluation Function (100% Rule-Based & Local Heuristics) ───────────
 export async function evaluateContestSubmission(
   evaluations: ProblemEvaluationInput[]
 ): Promise<IAIEvaluationReport> {
@@ -220,11 +151,8 @@ export async function evaluateContestSubmission(
     totalPassed += item.passedTestCases;
     totalCases += item.totalTestCases;
 
-    // Try Gemini first if key exists, else fallback to heuristic analyzer
-    let result = await callGeminiAnalysis(item);
-    if (!result) {
-      result = analyzeCodeMistakes(item);
-    }
+    // Fully deterministic, rule-based heuristic code diagnostics
+    const result = analyzeCodeMistakes(item);
 
     allMistakes.push(...result.mistakes);
     result.concepts.forEach((c) => allConcepts.add(c));

@@ -115,7 +115,15 @@ export const getProblemBySlug = async (req: Request, res: Response): Promise<voi
 export const createProblem = async (req: Request & { user?: { id: string } }, res: Response): Promise<void> => {
   try {
     const data = problemSchema.parse(req.body);
-    const problem = await Problem.create({ ...data, createdBy: req.user!.id } as any);
+    let questionId = data.questionId;
+    if (!questionId) {
+      const last = await Problem.findOne({ questionId: { $exists: true, $ne: null } })
+        .sort({ questionId: -1 })
+        .select('questionId')
+        .lean();
+      questionId = (last?.questionId && last.questionId > 0) ? last.questionId + 1 : 1;
+    }
+    const problem = await Problem.create({ ...data, questionId, createdBy: req.user!.id } as any);
     res.status(201).json(problem);
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0].message }); return; }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import {
   Trophy, Plus, Search, MoreHorizontal, Trash2, Eye,
-  CheckCircle2, Clock, Calendar, Users, Sparkles, ExternalLink, AlertCircle
+  CheckCircle2, Clock, Calendar, Users, ExternalLink, AlertCircle
 } from 'lucide-react';
 import styles from './contests.module.css';
 
@@ -120,7 +120,7 @@ export default function InstructorContestsPage() {
         <div>
           <h1 className={styles.title}>Coding Contests & Tests</h1>
           <p className={styles.subtitle}>
-            Organize coding contests and exams. Students code in a focused plain editor and receive instant automated AI feedback with course recommendations.
+            Organize coding contests and exams. Students code in a focused plain editor and receive automated test evaluations and rankings.
           </p>
         </div>
         <Link href="/instructor/contests/create" className={styles.createBtn}>
@@ -190,7 +190,7 @@ export default function InstructorContestsPage() {
             <p className={styles.emptyDesc}>
               {search
                 ? 'No contests match your search query.'
-                : 'You have not created any contests yet. Launch your first exam with question selection and AI evaluation.'}
+                : 'You have not created any contests yet. Launch your first exam with question selection and scoring.'}
             </p>
             {!search && (
               <Link href="/instructor/contests/create" className={styles.createBtn}>
@@ -223,11 +223,6 @@ export default function InstructorContestsPage() {
                           <ExternalLink size={12} style={{ opacity: 0.6 }} />
                         </Link>
                         <div className={styles.contestMeta}>
-                          {contest.aiEvaluationEnabled && (
-                            <span className={styles.metaItem} style={{ color: 'var(--accent-green)' }}>
-                              <Sparkles size={11} /> AI Evaluation Active
-                            </span>
-                          )}
                           <span className={styles.metaItem}>
                             <Clock size={11} /> {contest.durationMinutes} mins
                           </span>

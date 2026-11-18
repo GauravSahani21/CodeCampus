@@ -160,9 +160,19 @@ export const createProblem = async (req: AuthRequest, res: Response): Promise<vo
       .filter((tc) => tc.isExample)
       .map((tc) => ({ input: tc.input, output: tc.expectedOutput, explanation: tc.explanation }));
 
+    let questionId = (data as any).questionId;
+    if (!questionId) {
+      const last = await Problem.findOne({ questionId: { $exists: true, $ne: null } })
+        .sort({ questionId: -1 })
+        .select('questionId')
+        .lean();
+      questionId = (last?.questionId && last.questionId > 0) ? last.questionId + 1 : 1;
+    }
+
     const problem = await Problem.create({
       ...data,
       slug,
+      questionId,
       createdBy: req.user!.id,
       examples,
       starterTemplates: data.starterTemplates ?? {},

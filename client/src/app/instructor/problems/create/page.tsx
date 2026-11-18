@@ -57,7 +57,7 @@ const STEPS = [
   { id: 1, label: 'Problem Details', icon: FileText  },
   { id: 2, label: 'Description',     icon: Code2     },
   { id: 3, label: 'Test Cases',      icon: TestTube  },
-  { id: 4, label: 'Code & AI',       icon: Settings2 },
+  { id: 4, label: 'Starter Code',    icon: Settings2 },
 ];
 
 const STARTER_TEMPLATES: StarterCode = {
@@ -240,7 +240,7 @@ export default function CreateProblemPage() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Create Problem</h1>
-          <p className={styles.pageSubtitle}>Build a coding challenge with test cases and AI-powered student feedback</p>
+          <p className={styles.pageSubtitle}>Build a coding challenge with test cases and starter code for student submissions</p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={() => router.push('/instructor/problems')}>
           <X size={14} /> Discard
@@ -560,10 +560,10 @@ export default function CreateProblemPage() {
           </div>
         )}
 
-        {/* ── STEP 4: Starter Code & AI ─────────────────────── */}
+        {/* ── STEP 4: Starter Code ─────────────────────── */}
         {step === 4 && (
           <div className={styles.formCard} key="step4">
-            <h2 className={styles.sectionTitle}>Starter Code & AI Settings</h2>
+            <h2 className={styles.sectionTitle}>Starter Code &amp; Settings</h2>
 
             {/* Starter Code */}
             <div className={styles.field}>
@@ -592,70 +592,6 @@ export default function CreateProblemPage() {
               />
             </div>
 
-            {/* AI Settings */}
-            <div className={styles.aiSection}>
-              <div className={styles.aiToggleRow}>
-                <div className={styles.aiToggleInfo}>
-                  <div className={styles.aiToggleTitle}>
-                    <Zap size={16} strokeWidth={2} style={{ color: 'var(--accent-green)' }} />
-                    AI-Powered Submission Analysis
-                  </div>
-                  <div className={styles.aiToggleDesc}>
-                    After a student submits, AI analyzes their code + test results to identify mistakes, explain failures, and recommend specific courses/lessons to improve.
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className={`${styles.toggleBtn} ${form.aiEnabled ? styles.toggleOn : styles.toggleOff}`}
-                  onClick={() => setField('aiEnabled', !form.aiEnabled)}
-                  aria-label="Toggle AI analysis"
-                >
-                  <div className={styles.toggleThumb} style={{ transform: form.aiEnabled ? 'translateX(20px)' : 'translateX(0)' }} />
-                </button>
-              </div>
-
-              {form.aiEnabled && (
-                <div className={styles.aiConceptsSection}>
-                  <label className={styles.label}>Concepts AI Should Focus On</label>
-                  <p className={styles.fieldHint}>When AI analyzes submissions, it will prioritize explaining these concepts.</p>
-                  <div className={styles.tagGrid}>
-                    {[...form.tags, ...ALL_TAGS.filter(t => !form.tags.includes(t)).slice(0, 6)].map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => toggleAiConcept(tag)}
-                        className={`${styles.tagChip} ${form.aiConcepts.includes(tag) ? styles.tagChipAI : ''}`}
-                      >
-                        {tag}
-                        {form.aiConcepts.includes(tag) && <Zap size={11} strokeWidth={2} />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* AI Flow visual */}
-              {form.aiEnabled && (
-                <div className={styles.aiFlow}>
-                  <div className={styles.aiFlowTitle}><Zap size={13} /> Student Feedback Flow:</div>
-                  {[
-                    { step: '1', text: 'Code is executed against all test cases', sub: 'Runs through Piston execution engine' },
-                    { step: '2', text: 'Results + code sent to AI for analysis', sub: 'AI identifies bugs, wrong logic, missed edge cases' },
-                    { step: '3', text: 'Personalized feedback generated', sub: `Focused on: ${form.aiConcepts.length > 0 ? form.aiConcepts.slice(0,3).join(', ') : form.tags.slice(0,3).join(', ') || 'the problem topics'}` },
-                    { step: '4', text: 'Course/lesson recommendations shown', sub: 'Direct links to courses to master the missed concepts' },
-                  ].map((item) => (
-                    <div key={item.step} className={styles.aiFlowStep}>
-                      <div className={styles.aiFlowNum}>{item.step}</div>
-                      <div>
-                        <div className={styles.aiFlowText}>{item.text}</div>
-                        <div className={styles.aiFlowSub}>{item.sub}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Summary review */}
             <div className={styles.reviewBox}>
               <div className={styles.reviewTitle}>Review Before Publishing</div>
@@ -670,7 +606,6 @@ export default function CreateProblemPage() {
                   <strong>{form.testCases.length} total ({exampleCount} example, {visibleCount} visible, {hiddenCount} hidden)</strong>
                 </div>
                 <div className={styles.reviewItem}><span>Time Limit</span><strong>{form.timeLimitMs}ms</strong></div>
-                <div className={styles.reviewItem}><span>AI Analysis</span><strong style={{ color: form.aiEnabled ? 'var(--accent-green)' : 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{form.aiEnabled ? <><Zap size={13} /> Enabled</> : 'Disabled'}</strong></div>
               </div>
             </div>
           </div>

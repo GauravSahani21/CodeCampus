@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   Plus, Search, MoreHorizontal, Edit3, Trash2,
-  Eye, CheckCircle2, Clock, AlertCircle, Code2, Globe, FileEdit, Zap, X
+  Eye, CheckCircle2, Clock, AlertCircle, Code2, Globe, FileEdit, X, Zap
 } from 'lucide-react';
 import DeleteReasonModal from '@/components/Instructor/DeleteReasonModal';
 import styles from './problems.module.css';
@@ -140,7 +140,7 @@ export default function InstructorProblemsPage() {
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>My Problems</h1>
-          <p className={styles.subtitle}>Create and manage coding problems. Students will submit solutions and receive AI-powered feedback.</p>
+          <p className={styles.subtitle}>Create and manage coding problems. Students will submit solutions and receive automated judge evaluations.</p>
         </div>
         <Link href="/instructor/problems/create" className={styles.createBtn}>
           <Plus size={15} strokeWidth={2.5} />
@@ -177,7 +177,7 @@ export default function InstructorProblemsPage() {
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon}><Code2 size={36} strokeWidth={1.2} /></div>
           <h3>No problems yet</h3>
-          <p>Create your first coding problem. You can add a description, examples, test cases, starter code, and enable AI-powered analysis for student submissions.</p>
+          <p>Create your first coding problem. You can add a description, examples, test cases, and starter code for student submissions.</p>
           <Link href="/instructor/problems/create" className={styles.emptyBtn}>
             <Plus size={15} />
             Create First Problem
@@ -194,7 +194,6 @@ export default function InstructorProblemsPage() {
                 <th>Test Cases</th>
                 <th>Submissions</th>
                 <th>Pass Rate</th>
-                <th>AI</th>
                 <th>Status</th>
                 <th></th>
               </tr>
@@ -227,15 +226,6 @@ export default function InstructorProblemsPage() {
                       <span className={p.passRate >= 50 ? styles.passGood : styles.passBad}>
                         {p.passRate}%
                       </span>
-                    )}
-                  </td>
-                  <td>
-                    {p.aiEnabled ? (
-                      <span className={styles.aiOn} title="AI analysis enabled" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Zap size={13} />
-                      </span>
-                    ) : (
-                      <span className={styles.aiOff} title="AI analysis disabled">—</span>
                     )}
                   </td>
                   <td>

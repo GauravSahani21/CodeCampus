@@ -10,6 +10,7 @@ import api from '@/lib/api';
 import LanguageSelector from '@/components/Editor/LanguageSelector';
 import VsCodeTerminal from '@/components/Editor/VsCodeTerminal';
 import FileLanguageIcon from '@/components/Editor/FileLanguageIcon';
+import LeetCodeConsole from '@/components/Editor/LeetCodeConsole';
 import {
   Trophy, Clock, Send, ShieldAlert, ShieldCheck, Shield,
   Sparkles, AlertCircle, FileCode, CheckCircle2, ChevronRight,
@@ -214,6 +215,16 @@ export default function ContestExamPage() {
   const [customInput, setCustomInput] = useState<string>('');
   const [customResult, setCustomResult] = useState<any>(null);
   const [activeTestMode, setActiveTestMode] = useState<'cases' | 'custom'>('cases');
+  const [consoleOutput, setConsoleOutput] = useState<{
+    stdout?: string;
+    stderr?: string;
+    status?: string;
+    runtime?: number;
+    testResults?: any[];
+    passedCount?: number;
+    totalCount?: number;
+  } | null>(null);
+  const [activeConsoleTab, setActiveConsoleTab] = useState<'testcase' | 'result'>('testcase');
 
   // Timer
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(3600);
@@ -238,7 +249,31 @@ export default function ContestExamPage() {
   const [violationLogs, setViolationLogs] = useState<ViolationEvent[]>([]);
   const [proctorToast, setProctorToast] = useState<string | null>(null);
 
+  // ── Auto Disqualification & Cheating States & Refs ──
+  const [isDisqualified, setIsDisqualified] = useState(false);
+  const [isCheating, setIsCheating] = useState(false);
+  const [disqualificationReason, setDisqualificationReason] = useState('');
+
+  const resumingCooldownRef = useRef(false);
+  const lastTabSwitchTimeRef = useRef(0);
+  const tabSwitchesRef = useRef(0);
+  const violationsCountRef = useRef(0);
+  const isDisqualifiedRef = useRef(false);
+  const solutionsRef = useRef(solutions);
+  solutionsRef.current = solutions;
+  const mcqAnswersRef = useRef(mcqAnswers);
+  mcqAnswersRef.current = mcqAnswers;
+  const timeSpentRef = useRef(timeSpentSeconds);
+  timeSpentRef.current = timeSpentSeconds;
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
+
+  const handleTextareaScroll = useCallback(() => {
+    if (textareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, []);
   const toastTimerRef = useRef<any>(null);
 
   // Synthesizer Beep for Security Alert
@@ -340,7 +375,18 @@ export default function ContestExamPage() {
         try {
           const subRes = await api.get(`/contests/${contestId}/my-submission`);
           if (subRes.data?.submission) {
-            setExistingSubmission(subRes.data.submission);
+            const sub = subRes.data.submission;
+            setExistingSubmission(sub);
+            if (sub.isCheating || sub.isDisqualified || sub.status === 'Cheating' || sub.status === 'Disqualified') {
+              setIsDisqualified(true);
+              setIsCheating(true);
+              isDisqualifiedRef.current = true;
+              setDisqualificationReason(
+                sub.cheatingReason ||
+                sub.disqualificationReason ||
+                'Academic integrity violation: Exceeded maximum allowed violations (3/3). Contest terminated and flagged as cheating.'
+              );
+            }
             setHasStartedExam(true); // already finished, no gate needed
           }
         } catch {
@@ -374,9 +420,115 @@ export default function ContestExamPage() {
     return () => clearInterval(timer);
   }, [loading, submitting, hasStartedExam]);
 
+  const handleResumeFromTabSwitch = () => {
+    resumingCooldownRef.current = true;
+    setShowTabSwitchWarning(false);
+    try {
+      window.focus();
+    } catch {}
+    setTimeout(() => {
+      resumingCooldownRef.current = false;
+    }, 1500);
+  };
+
+  const handleAutoDisqualify = useCallback(async (customReason?: string) => {
+    if (isDisqualifiedRef.current) return;
+    isDisqualifiedRef.current = true;
+    setIsDisqualified(true);
+    setIsCheating(true);
+    const reasonText =
+      customReason ||
+      'Academic integrity violation: Exceeded maximum allowed proctoring violations (3/3). Contest terminated and flagged as cheating with score of 0.';
+    setDisqualificationReason(reasonText);
+    setShowTabSwitchWarning(false);
+    setShowFullscreenWarning(false);
+
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {});
+      }
+    } catch {}
+
+    triggerAlertSound();
+
+    try {
+      const mcqArray = (contest?.mcqQuestions || []).map((_, idx) => ({
+        questionIndex: idx,
+        selectedOption: typeof mcqAnswersRef.current[idx] === 'number' ? mcqAnswersRef.current[idx] : -1,
+      }));
+
+      const finalLogs = [
+        {
+          type: 'Contest Terminated - Flagged as Cheating (3/3 Violations)',
+          timestamp: new Date().toLocaleTimeString(),
+          detail: 'Maximum 3 proctoring violations reached. Contest terminated and flagged as cheating with score 0.',
+        },
+        ...violationLogs,
+      ];
+
+      const payload = {
+        timeSpentSeconds: timeSpentRef.current,
+        solutions: Object.entries(solutionsRef.current).map(([probId, data]) => ({
+          problemId: probId,
+          language: data.language,
+          code: data.code,
+        })),
+        mcqAnswers: mcqArray,
+        proctoringData: {
+          tabSwitches: tabSwitchesRef.current,
+          fullscreenExits,
+          copyPasteAttempts,
+          violationsCount: Math.max(3, violationsCountRef.current),
+          violationLogs: finalLogs,
+        },
+        isDisqualified: true,
+        isCheating: true,
+        status: 'Cheating',
+        disqualificationReason: reasonText,
+        cheatingReason: reasonText,
+      };
+
+      await api.post(`/contests/${contestId}/submit`, payload);
+    } catch (err) {
+      console.error('Failed to submit cheating status to server:', err);
+    }
+  }, [contest, contestId, fullscreenExits, copyPasteAttempts, violationLogs, triggerAlertSound]);
+
+  const recordViolation = useCallback((type: string, detail: string, isTabSwitch = false) => {
+    if (!hasStartedExam || submitting || isDisqualifiedRef.current) return;
+    if (isTabSwitch && resumingCooldownRef.current) return;
+
+    violationsCountRef.current += 1;
+    const currentViolations = violationsCountRef.current;
+    setViolationsCount(currentViolations);
+
+    const logEntry: ViolationEvent = {
+      type: `${type} (${currentViolations}/3)`,
+      timestamp: new Date().toLocaleTimeString(),
+      detail:
+        currentViolations >= 3
+          ? `${detail} — Maximum violations limit reached (3/3). Contest terminated and flagged as cheating.`
+          : `${detail} (Violation ${currentViolations} of 3 recorded).`,
+    };
+
+    setViolationLogs((prev) => [logEntry, ...prev]);
+    triggerAlertSound();
+
+    if (currentViolations >= 3) {
+      handleAutoDisqualify(
+        `Academic integrity violation: Exceeded maximum allowed violations limit (3/3) due to ${type.toLowerCase()}. Contest terminated and flagged as cheating.`
+      );
+    } else {
+      if (isTabSwitch) {
+        setShowTabSwitchWarning(true);
+      }
+      showToast(`Security Alert (${currentViolations}/3): ${type} detected!`);
+    }
+  }, [hasStartedExam, submitting, triggerAlertSound, showToast, handleAutoDisqualify]);
+
   // ── PROCTORING EVENT LISTENERS ──
   useEffect(() => {
-    if (!hasStartedExam || submitting || existingSubmission) return;
+    if (!hasStartedExam || submitting || existingSubmission || isDisqualified) return;
 
     // 1. Fullscreen Change Detection
     const handleFullscreenChange = () => {
@@ -386,35 +538,21 @@ export default function ContestExamPage() {
       if (!active) {
         setShowFullscreenWarning(true);
         setFullscreenExits((prev) => prev + 1);
-        setViolationsCount((prev) => prev + 1);
-        setViolationLogs((prev) => [
-          {
-            type: 'Fullscreen Exited',
-            timestamp: new Date().toLocaleTimeString(),
-            detail: 'Candidate exited fullscreen mode',
-          },
-          ...prev,
-        ]);
-        triggerAlertSound();
-        showToast('Fullscreen Exited! Please return to fullscreen immediately.');
+        recordViolation('Fullscreen Exited', 'Candidate exited fullscreen mode');
       }
     };
 
     // 2. Window Blur / Tab Switch Detection
     const handleWindowBlur = () => {
-      setTabSwitches((prev) => prev + 1);
-      setViolationsCount((prev) => prev + 1);
-      setViolationLogs((prev) => [
-        {
-          type: 'Window/Tab Switch',
-          timestamp: new Date().toLocaleTimeString(),
-          detail: 'Exam window lost focus or candidate switched tabs/applications',
-        },
-        ...prev,
-      ]);
-      setShowTabSwitchWarning(true);
-      triggerAlertSound();
-      showToast('Window/Tab Switch Detected! Violation logged.');
+      if (!hasStartedExam || submitting || isDisqualifiedRef.current || resumingCooldownRef.current) return;
+
+      const now = Date.now();
+      if (now - lastTabSwitchTimeRef.current < 1500) return; // 1.5s debounce prevents double event from blur + visibilitychange
+      lastTabSwitchTimeRef.current = now;
+
+      tabSwitchesRef.current += 1;
+      setTabSwitches(tabSwitchesRef.current);
+      recordViolation('Window / Tab Switch', 'Exam window lost focus or candidate switched tabs/applications', true);
     };
 
     const handleVisibilityChange = () => {
@@ -427,49 +565,19 @@ export default function ContestExamPage() {
     const handleCopy = (e: ClipboardEvent) => {
       e.preventDefault();
       setCopyPasteAttempts((prev) => prev + 1);
-      setViolationsCount((prev) => prev + 1);
-      setViolationLogs((prev) => [
-        {
-          type: 'Copy Blocked',
-          timestamp: new Date().toLocaleTimeString(),
-          detail: 'Attempted to copy exam contents to clipboard',
-        },
-        ...prev,
-      ]);
-      triggerAlertSound();
-      showToast('Copying is prohibited during the proctored exam!');
+      recordViolation('Copy Blocked', 'Attempted to copy exam contents to clipboard');
     };
 
     const handleCut = (e: ClipboardEvent) => {
       e.preventDefault();
       setCopyPasteAttempts((prev) => prev + 1);
-      setViolationsCount((prev) => prev + 1);
-      setViolationLogs((prev) => [
-        {
-          type: 'Cut Blocked',
-          timestamp: new Date().toLocaleTimeString(),
-          detail: 'Attempted to cut exam text',
-        },
-        ...prev,
-      ]);
-      triggerAlertSound();
-      showToast('Cutting text is prohibited during the proctored exam!');
+      recordViolation('Cut Blocked', 'Attempted to cut exam text');
     };
 
     const handlePaste = (e: ClipboardEvent) => {
       e.preventDefault();
       setCopyPasteAttempts((prev) => prev + 1);
-      setViolationsCount((prev) => prev + 1);
-      setViolationLogs((prev) => [
-        {
-          type: 'Paste Blocked',
-          timestamp: new Date().toLocaleTimeString(),
-          detail: 'Attempted to paste external content into editor',
-        },
-        ...prev,
-      ]);
-      triggerAlertSound();
-      showToast('Pasting code is prohibited! Write solutions directly.');
+      recordViolation('Paste Blocked', 'Attempted to paste external content into editor');
     };
 
     // 4. Disable Context Menu (Right Click)
@@ -487,17 +595,7 @@ export default function ContestExamPage() {
       if (isCtrlOrMeta && (key === 'c' || key === 'v' || key === 'x')) {
         e.preventDefault();
         setCopyPasteAttempts((prev) => prev + 1);
-        setViolationsCount((prev) => prev + 1);
-        setViolationLogs((prev) => [
-          {
-            type: `Shortcut Blocked (Ctrl+${key.toUpperCase()})`,
-            timestamp: new Date().toLocaleTimeString(),
-            detail: `Attempted clipboard shortcut Ctrl+${key.toUpperCase()}`,
-          },
-          ...prev,
-        ]);
-        triggerAlertSound();
-        showToast(`Keyboard shortcut (Ctrl+${key.toUpperCase()}) is disabled!`);
+        recordViolation(`Blocked Shortcut (Ctrl+${key.toUpperCase()})`, `Attempted clipboard shortcut Ctrl+${key.toUpperCase()}`);
       }
 
       // Block Developer Tools (F12, Ctrl+Shift+I/J/C)
@@ -507,7 +605,7 @@ export default function ContestExamPage() {
         (isCtrlOrMeta && key === 'u')
       ) {
         e.preventDefault();
-        showToast('Developer tools inspection is blocked.');
+        recordViolation('Developer Tools Blocked', `Attempted to open developer tools (key: ${e.key})`);
       }
     };
 
@@ -532,7 +630,7 @@ export default function ContestExamPage() {
       window.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [hasStartedExam, submitting, existingSubmission, triggerAlertSound, showToast]);
+  }, [hasStartedExam, submitting, existingSubmission, isDisqualified, recordViolation, showToast]);
 
   const formatTimer = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -624,11 +722,12 @@ export default function ContestExamPage() {
       setRunningCode(true);
       setIsConsoleOpen(true);
       setTestConsoleOpen(true);
+      setActiveConsoleTab('result');
       setRunError(null);
 
       const effectiveCustomInput = typeof overrideStdin === 'string'
         ? overrideStdin
-        : (activeTestMode === 'custom' ? customInput : undefined);
+        : (customInput.trim() ? customInput : undefined);
 
       const res = await api.post(`/contests/${contestId}/run`, {
         problemId: currentProb._id,
@@ -639,6 +738,22 @@ export default function ContestExamPage() {
 
       if (res.data.custom) {
         setCustomResult(res.data);
+        const hasErr = Boolean(res.data.error || (res.data.exitCode && res.data.exitCode !== 0));
+        setConsoleOutput({
+          stdout: res.data.output || '',
+          stderr: res.data.error || '',
+          status: hasErr ? 'Runtime Error' : 'Accepted',
+          runtime: res.data.executionTimeMs,
+          testResults: [{
+            passed: !hasErr,
+            input: res.data.input || effectiveCustomInput || '',
+            expected: '',
+            actual: res.data.output || (hasErr ? res.data.error : '(no output)'),
+            runtime: res.data.executionTimeMs,
+          }],
+          passedCount: !hasErr ? 1 : 0,
+          totalCount: 1,
+        });
         setTerminalOutput({
           stdout: res.data.output || '',
           stderr: res.data.error || '',
@@ -652,9 +767,24 @@ export default function ContestExamPage() {
         setActiveCaseTab(0);
         const passedCount = tests.filter((t: any) => t.passed).length;
         const firstErr = tests.find((t: any) => t.error)?.error;
+        const allPassed = res.data.allPassed;
+        setConsoleOutput({
+          status: allPassed ? 'Accepted' : (firstErr ? 'Runtime Error' : 'Wrong Answer'),
+          runtime: tests[0]?.executionTimeMs,
+          passedCount,
+          totalCount: tests.length,
+          stderr: firstErr || undefined,
+          testResults: tests.map((t: any) => ({
+            passed: t.passed,
+            input: t.input,
+            expected: t.expectedOutput,
+            actual: t.actualOutput,
+            runtime: t.executionTimeMs,
+          })),
+        });
         setTerminalOutput({
           stdout: res.data.allPassed
-            ? `✓ All ${tests.length} example test cases passed!`
+            ? `All ${tests.length} example test cases passed successfully.`
             : `Testing completed: ${passedCount}/${tests.length} test cases passed.`,
           stderr: firstErr || '',
           exitCode: res.data.allPassed ? 0 : 1,
@@ -674,6 +804,11 @@ export default function ContestExamPage() {
       console.error('Failed to run code:', err);
       const msg = err.response?.data?.error || 'Failed to execute code';
       setRunError(msg);
+      setConsoleOutput({
+        stdout: '',
+        stderr: msg,
+        status: 'Runtime Error',
+      });
       setTerminalOutput({
         stdout: '',
         stderr: msg,
@@ -801,6 +936,14 @@ export default function ContestExamPage() {
 
   // If user already submitted this contest assessment, show completed summary view
   if (existingSubmission && contest) {
+    const isSubCheating = Boolean(
+      existingSubmission.isCheating ||
+      existingSubmission.isDisqualified ||
+      existingSubmission.status === 'Cheating' ||
+      existingSubmission.status === 'Disqualified' ||
+      (existingSubmission.proctoringData?.violationsCount || 0) >= 3
+    );
+
     return (
       <div
         style={{
@@ -817,11 +960,11 @@ export default function ContestExamPage() {
             maxWidth: '560px',
             width: '100%',
             background: 'var(--bg-card, #161b22)',
-            border: '1px solid var(--border-color, #30363d)',
+            border: isSubCheating ? '1px solid rgba(248, 81, 73, 0.4)' : '1px solid var(--border-color, #30363d)',
             borderRadius: '16px',
             padding: '36px 32px',
             textAlign: 'center',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            boxShadow: isSubCheating ? '0 20px 50px rgba(248, 81, 73, 0.25)' : '0 20px 40px rgba(0,0,0,0.5)',
           }}
         >
           <div
@@ -829,33 +972,33 @@ export default function ContestExamPage() {
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              background: 'rgba(57, 211, 83, 0.12)',
-              border: '1px solid rgba(57, 211, 83, 0.3)',
+              background: isSubCheating ? 'rgba(248, 81, 73, 0.15)' : 'rgba(57, 211, 83, 0.12)',
+              border: isSubCheating ? '1px solid rgba(248, 81, 73, 0.4)' : '1px solid rgba(57, 211, 83, 0.3)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
-              color: 'var(--accent-green, #39d353)',
+              color: isSubCheating ? 'var(--accent-red)' : 'var(--accent-green, #39d353)',
             }}
           >
-            <CheckCircle2 size={36} />
+            {isSubCheating ? <ShieldAlert size={36} /> : <CheckCircle2 size={36} />}
           </div>
 
           <span
             style={{
               display: 'inline-block',
-              padding: '4px 12px',
+              padding: '4px 14px',
               borderRadius: '9999px',
-              background: 'rgba(57, 211, 83, 0.15)',
-              color: 'var(--accent-green, #39d353)',
+              background: isSubCheating ? 'rgba(248, 81, 73, 0.2)' : 'rgba(57, 211, 83, 0.15)',
+              color: isSubCheating ? 'var(--accent-red)' : 'var(--accent-green, #39d353)',
               fontSize: '0.75rem',
-              fontWeight: 700,
+              fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               marginBottom: '10px',
             }}
           >
-            Assessment Completed
+            {isSubCheating ? 'FLAGGED AS CHEATING' : 'Assessment Completed'}
           </span>
 
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
@@ -863,7 +1006,9 @@ export default function ContestExamPage() {
           </h1>
 
           <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary, #8b949e)', lineHeight: 1.6, marginBottom: '24px' }}>
-            You have already attended and submitted your solutions for this contest assessment. Solutions have been locked and evaluated.
+            {isSubCheating
+              ? 'This assessment was terminated and permanently flagged as cheating due to exceeding the maximum limit of 3 proctoring violations. All marks have been revoked and set to 0.'
+              : 'You have already attended and submitted your solutions for this contest assessment. Solutions have been locked and evaluated.'}
           </p>
 
           <div
@@ -874,7 +1019,7 @@ export default function ContestExamPage() {
               padding: '16px',
               background: 'rgba(0, 0, 0, 0.25)',
               borderRadius: '10px',
-              border: '1px solid var(--border-color, #30363d)',
+              border: isSubCheating ? '1px solid rgba(248, 81, 73, 0.25)' : '1px solid var(--border-color, #30363d)',
               marginBottom: '28px',
               textAlign: 'left',
             }}
@@ -883,8 +1028,8 @@ export default function ContestExamPage() {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #6e7681)', textTransform: 'uppercase', fontWeight: 600 }}>
                 Score Achieved
               </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-green, #39d353)', marginTop: '2px' }}>
-                {existingSubmission.totalScore ?? 0} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted, #6e7681)' }}>/ {existingSubmission.maxScore || contest.totalPoints || 100}</span>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: isSubCheating ? 'var(--accent-red)' : 'var(--accent-green, #39d353)', marginTop: '2px' }}>
+                {isSubCheating ? 0 : (existingSubmission.totalScore ?? 0)} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted, #6e7681)' }}>/ {existingSubmission.maxScore || contest.totalPoints || 100}</span>
               </div>
             </div>
 
@@ -892,8 +1037,8 @@ export default function ContestExamPage() {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #6e7681)', textTransform: 'uppercase', fontWeight: 600 }}>
                 Accuracy / Percentage
               </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
-                {existingSubmission.percentage ?? 0}%
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: isSubCheating ? 'var(--accent-red)' : '#fff', marginTop: '2px' }}>
+                {isSubCheating ? '0%' : `${existingSubmission.percentage ?? 0}%`}
               </div>
             </div>
 
@@ -910,8 +1055,8 @@ export default function ContestExamPage() {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #6e7681)', textTransform: 'uppercase', fontWeight: 600 }}>
                 Proctoring Summary
               </div>
-              <div style={{ fontSize: '0.82rem', color: existingSubmission.proctoringData?.violationsCount ? 'var(--accent-amber, #d29922)' : 'var(--accent-green, #39d353)', marginTop: '4px', fontWeight: 600 }}>
-                {existingSubmission.proctoringData?.violationsCount ? `${existingSubmission.proctoringData.violationsCount} infractions logged` : 'Clean integrity record'}
+              <div style={{ fontSize: '0.82rem', color: isSubCheating ? 'var(--accent-red)' : (existingSubmission.proctoringData?.violationsCount ? 'var(--accent-amber, #d29922)' : 'var(--accent-green, #39d353)'), marginTop: '4px', fontWeight: 600 }}>
+                {isSubCheating ? 'Flagged as Cheating (3/3 Violations)' : (existingSubmission.proctoringData?.violationsCount ? `${existingSubmission.proctoringData.violationsCount} infractions logged` : 'Clean integrity record')}
               </div>
             </div>
           </div>
@@ -929,9 +1074,19 @@ export default function ContestExamPage() {
                 fontWeight: 700,
                 fontSize: '0.88rem',
                 textDecoration: 'none',
+                background: isSubCheating ? 'var(--accent-red)' : undefined,
+                borderColor: isSubCheating ? 'var(--accent-red)' : undefined,
               }}
             >
-              <Sparkles size={16} /> View AI Performance &amp; Recommendations
+              {isSubCheating ? (
+                <>
+                  <ShieldAlert size={16} /> View Cheating Audit &amp; Details
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} /> View AI Performance &amp; Recommendations
+                </>
+              )}
             </Link>
 
             <button
@@ -1067,26 +1222,155 @@ export default function ContestExamPage() {
       )}
 
       {/* ── Tab Switch / Window Blur Warning Alert ── */}
-      {hasStartedExam && showTabSwitchWarning && !showFullscreenWarning && !submitting && (
+      {hasStartedExam && showTabSwitchWarning && !showFullscreenWarning && !submitting && !isDisqualified && (
         <div className={styles.securityOverlay}>
           <div className={`${styles.securityCard} ${styles.securityCardWarning}`}>
             <div className={`${styles.securityIconWrap} ${styles.securityIconWarn}`}>
               <EyeOff size={36} style={{ color: 'var(--accent-amber)' }} />
             </div>
-            <h3 className={styles.securityTitle}>Window / Tab Switch Detected!</h3>
+            <h3 className={styles.securityTitle}>
+              {violationsCount <= 1
+                ? 'Warning (1/3 Violations): Proctoring Alert'
+                : 'FINAL WARNING (2/3 Violations): Proctoring Alert!'}
+            </h3>
             <p className={styles.securityText}>
-              You navigated away from the exam window or switched tabs. Navigating outside the contest window is strictly prohibited and logged for instructor review.
+              {violationsCount <= 1 ? (
+                <>
+                  A proctoring infraction was detected. You are permitted a maximum of <strong>3 violations</strong>. You have <strong style={{ color: 'var(--accent-amber)' }}>2 warnings remaining</strong> before your exam is automatically closed and flagged as cheating.
+                </>
+              ) : (
+                <>
+                  <strong style={{ color: 'var(--accent-red)' }}>CRITICAL ACADEMIC INTEGRITY ALERT:</strong> You have reached <strong>2 of 3 allowed violations</strong>. If you commit <strong>1 more violation</strong> (tab switch, exiting fullscreen, copy-paste, etc.), your contest will be <strong style={{ color: 'var(--accent-red)' }}>immediately terminated and FLAGGED AS CHEATING with a score of 0</strong>.
+                </>
+              )}
             </p>
-            <div style={{ marginBottom: '18px', fontSize: '0.8rem', color: 'var(--accent-amber)' }}>
-              Total Recorded Violations: <strong>{violationsCount}</strong>
+            <div
+              style={{
+                marginBottom: '18px',
+                fontSize: '0.82rem',
+                color: 'var(--accent-amber)',
+                background: 'rgba(245, 158, 11, 0.1)',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+              }}
+            >
+              Total Infractions: <strong>{violationsCount} / 3</strong> · Violations Remaining: <strong>{Math.max(0, 3 - violationsCount)}</strong>
             </div>
             <button
               className={styles.securityActionBtn}
-              style={{ background: 'var(--accent-amber)', color: '#0d1117' }}
-              onClick={() => setShowTabSwitchWarning(false)}
+              style={{
+                background: '#f59e0b',
+                color: '#0d1117',
+                fontWeight: 800,
+                fontSize: '0.92rem',
+                cursor: 'pointer',
+                border: 'none',
+                boxShadow: '0 0 16px rgba(245, 158, 11, 0.4)',
+              }}
+              onClick={handleResumeFromTabSwitch}
             >
-              <CheckCircle2 size={16} /> I Understand &amp; Resume Exam
+              <CheckCircle2 size={16} /> {violationsCount <= 1 ? 'I Understand & Resume Exam (2 Left)' : 'I Acknowledge Final Warning & Resume (1 Left)'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Auto Disqualification Modal (3/3 Violations -> Flagged as Cheating) ── */}
+      {isDisqualified && (
+        <div className={styles.securityOverlay} style={{ zIndex: 10000, background: 'rgba(13, 17, 23, 0.96)' }}>
+          <div
+            className={styles.securityCard}
+            style={{
+              maxWidth: '560px',
+              border: '1px solid rgba(248, 81, 73, 0.6)',
+              boxShadow: '0 0 60px rgba(248, 81, 73, 0.4)',
+              background: '#161b22',
+            }}
+          >
+            <div
+              className={styles.securityIconWrap}
+              style={{
+                background: 'rgba(248, 81, 73, 0.18)',
+                border: '1px solid rgba(248, 81, 73, 0.5)',
+                margin: '0 auto 16px',
+              }}
+            >
+              <ShieldAlert size={44} style={{ color: 'var(--accent-red)' }} />
+            </div>
+
+            <div
+              style={{
+                display: 'inline-block',
+                padding: '4px 14px',
+                borderRadius: '9999px',
+                background: 'rgba(248, 81, 73, 0.25)',
+                color: 'var(--accent-red)',
+                fontSize: '0.78rem',
+                fontWeight: 900,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: '12px',
+                border: '1px solid rgba(248, 81, 73, 0.4)',
+              }}
+            >
+              CONTEST OVER · FLAGGED AS CHEATING
+            </div>
+
+            <h2 className={styles.securityTitle} style={{ color: '#fff', fontSize: '1.45rem', marginBottom: '12px' }}>
+              Contest Over — Flagged as Cheating
+            </h2>
+
+            <p className={styles.securityText} style={{ color: '#c9d1d9', fontSize: '0.88rem', lineHeight: 1.6 }}>
+              You reached the maximum limit of <strong>3 proctoring violations</strong> during this assessment. As per academic integrity policies, your exam session has ended and has been <strong>permanently flagged as cheating</strong>. Your final score is <strong>0</strong>.
+            </p>
+
+            <div
+              style={{
+                background: 'rgba(0, 0, 0, 0.35)',
+                border: '1px solid rgba(248, 81, 73, 0.25)',
+                borderRadius: '8px',
+                padding: '14px',
+                marginBottom: '22px',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <span>Infraction Limit</span>
+                <span style={{ color: 'var(--accent-red)', fontWeight: 700 }}>3 of 3 Violations (Limit Exceeded)</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <span>Infractions Recorded</span>
+                <span style={{ color: '#ff7b72', fontWeight: 600 }}>
+                  {tabSwitches > 0 && `${tabSwitches} Tab Switch `}
+                  {fullscreenExits > 0 && `${fullscreenExits} Fullscreen Exit `}
+                  {copyPasteAttempts > 0 && `${copyPasteAttempts} Clipboard Blocked `}
+                  {tabSwitches === 0 && fullscreenExits === 0 && copyPasteAttempts === 0 && `${violationsCount} Violations`}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <span>Exam Result</span>
+                <span style={{ color: 'var(--accent-red)', fontWeight: 900 }}>FLAGGED AS CHEATING · 0 PTS</span>
+              </div>
+            </div>
+
+            <Link
+              href={`/contests/${contestId}/results`}
+              className={styles.securityActionBtn}
+              style={{
+                background: 'var(--accent-red)',
+                color: '#fff',
+                textDecoration: 'none',
+                width: '100%',
+                fontWeight: 800,
+                fontSize: '0.92rem',
+                boxShadow: '0 0 20px rgba(248, 81, 73, 0.4)',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <ShieldAlert size={16} /> View Cheating Audit &amp; Results
+            </Link>
           </div>
         </div>
       )}
@@ -1129,8 +1413,8 @@ export default function ContestExamPage() {
 
             <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '20px' }}>
               {violationLogs.length === 0 ? (
-                <div style={{ fontSize: '0.78rem', color: 'var(--accent-green)', padding: '10px', textAlign: 'center' }}>
-                  ✓ Clean exam session. No violations recorded.
+                <div style={{ fontSize: '0.78rem', color: 'var(--accent-green)', padding: '10px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <CheckCircle2 size={14} /> Clean exam session. No violations recorded.
                 </div>
               ) : (
                 violationLogs.map((v, idx) => (
@@ -1412,7 +1696,12 @@ export default function ContestExamPage() {
                 <button
                   key={p.problemId?._id || idx}
                   className={`${styles.probTab} ${selectedProblemIdx === idx ? styles.probTabActive : ''}`}
-                  onClick={() => setSelectedProblemIdx(idx)}
+                  onClick={() => {
+                    setSelectedProblemIdx(idx);
+                    setConsoleOutput(null);
+                    setCustomInput('');
+                    setActiveConsoleTab('testcase');
+                  }}
                 >
                   <span>Q{idx + 1}. {p.problemId?.title || `Problem ${idx + 1}`}</span>
                   <span className={styles.pointsPill}>({p.points} pts)</span>
@@ -1461,7 +1750,7 @@ export default function ContestExamPage() {
 
                   <div className={styles.markdownBody}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {currentProb.description}
+                      {currentProb.description ? currentProb.description.replace(/\\n/g, '\n').replace(/\\r/g, '') : ''}
                     </ReactMarkdown>
                   </div>
 
@@ -1634,15 +1923,17 @@ export default function ContestExamPage() {
 
                     <Separator className={styles.resizeHandleHorizontal} />
 
-                    <Panel defaultSize={45} minSize={20} style={{ display: 'flex', flexDirection: 'column' }}>
-                      <VsCodeTerminal
-                        language={currentSol?.language || 'python'}
+                    <Panel defaultSize={45} minSize={20} style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }} data-lenis-prevent="true">
+                      <LeetCodeConsole
+                        problem={currentProb}
+                        output={consoleOutput}
                         isRunning={runningCode}
-                        output={terminalOutput}
-                        onSendInput={(stdinVal) => handleRunCode(stdinVal)}
-                        onClear={() => setTerminalOutput(null)}
+                        customInput={customInput}
+                        onCustomInputChange={setCustomInput}
+                        onRun={() => handleRunCode()}
                         onClose={() => setIsConsoleOpen(false)}
-                        onRestart={() => handleRunCode()}
+                        activeTab={activeConsoleTab}
+                        setActiveTab={setActiveConsoleTab}
                       />
                     </Panel>
                   </Group>
@@ -1696,20 +1987,29 @@ export default function ContestExamPage() {
       ) : (
         /* Regular Split Coding Exam Body */
         <div className={styles.examBody}>
-          {/* Left Pane: Problem Description (Non-selectable to prevent cheating) */}
-          <section className={styles.problemPane}>
+          {/* Left Sidebar: Problem Navigator */}
+          <aside className={styles.blankExamSidebar} data-lenis-prevent="true">
+            <div className={styles.blankSidebarHeader}>
+              <div className={styles.blankSidebarTitle}>
+                <ListChecks size={15} style={{ color: 'var(--accent-green)' }} />
+                <span>Questions</span>
+              </div>
+              <span className={styles.blankSidebarBadge}>{contest.problems.length} Problems</span>
+            </div>
+
+            {/* Section Switcher in Left Sidebar */}
             {contest.contestType === 'superset' && contest.mcqQuestions && contest.mcqQuestions.length > 0 && (
-              <div className={styles.leftSidebarSectionTabs}>
+              <div className={styles.sidebarSectionSwitcher}>
                 <button
                   type="button"
-                  className={`${styles.sectionTab} ${activeSection === 'coding' ? styles.sectionTabActive : ''}`}
+                  className={`${styles.sidebarSectionBtn} ${activeSection === 'coding' ? styles.sidebarSectionBtnActive : ''}`}
                   onClick={() => setActiveSection('coding')}
                 >
                   <FileCode size={13} /> Coding <span className={styles.badgeCount}>{contest.problems.length}</span>
                 </button>
                 <button
                   type="button"
-                  className={`${styles.sectionTab} ${activeSection === 'mcq' ? styles.sectionTabActiveBlue : ''}`}
+                  className={`${styles.sidebarSectionBtn} ${activeSection === 'mcq' ? styles.sidebarSectionBtnActiveBlue : ''}`}
                   onClick={() => setActiveSection('mcq')}
                 >
                   <ListChecks size={13} /> MCQs <span className={styles.badgeCount}>{contest.mcqQuestions.length}</span>
@@ -1717,22 +2017,73 @@ export default function ContestExamPage() {
               </div>
             )}
 
-            {/* Problem Tabs */}
-            <div className={styles.problemTabs}>
-              {contest.problems.map((p, idx) => (
-                <button
-                  key={p.problemId?._id || idx}
-                  className={`${styles.probTab} ${selectedProblemIdx === idx ? styles.probTabActive : ''}`}
-                  onClick={() => setSelectedProblemIdx(idx)}
-                >
-                  <span>Q{idx + 1}. {p.problemId?.title || `Problem ${idx + 1}`}</span>
-                  <span className={styles.pointsPill}>({p.points} pts)</span>
-                </button>
-              ))}
+            {/* Problem Navigation List */}
+            <div className={styles.blankSidebarList} data-lenis-prevent="true">
+              {contest.problems.map((p, idx) => {
+                const isSelected = selectedProblemIdx === idx;
+                const sol = solutions[p.problemId?._id];
+                const hasCode = Boolean(sol?.code && sol.code.trim().length > 0);
+
+                return (
+                  <button
+                    key={p.problemId?._id || idx}
+                    type="button"
+                    className={`${styles.blankSidebarCard} ${isSelected ? styles.blankSidebarCardActive : ''}`}
+                    onClick={() => {
+                      setSelectedProblemIdx(idx);
+                      setConsoleOutput(null);
+                      setCustomInput('');
+                      setActiveConsoleTab('testcase');
+                    }}
+                  >
+                    <div className={styles.blankSidebarCardTop}>
+                      <span className={`${styles.blankSidebarNumPill} ${hasCode ? styles.blankSidebarNumPillSolved : ''}`}>
+                        {hasCode ? <Check size={11} strokeWidth={3} /> : idx + 1}
+                      </span>
+                      <span className={styles.blankSidebarProbTitle}>
+                        {p.problemId?.title || `Problem ${idx + 1}`}
+                      </span>
+                    </div>
+
+                    <div className={styles.blankSidebarCardMeta}>
+                      <span
+                        className={
+                          p.problemId?.difficulty === 'Easy'
+                            ? styles.diffEasy
+                            : p.problemId?.difficulty === 'Medium'
+                            ? styles.diffMedium
+                            : styles.diffHard
+                        }
+                      >
+                        {p.problemId?.difficulty || 'Medium'}
+                      </span>
+                      <span className={styles.blankSidebarPoints}>{p.points} pts</span>
+                      {hasCode && (
+                        <span className={styles.attemptedBadge}>
+                          <CheckCircle2 size={10} /> Attempted
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
+            {/* Sidebar Summary Footer */}
+            <div className={styles.blankSidebarFooter}>
+              <div className={styles.sidebarProgressRow}>
+                <span>Completed:</span>
+                <strong style={{ color: 'var(--accent-green)' }}>
+                  {contest.problems.filter((p) => Boolean(solutions[p.problemId?._id]?.code?.trim())).length} / {contest.problems.length}
+                </strong>
+              </div>
+            </div>
+          </aside>
+
+          {/* Middle Pane: Problem Description (Non-selectable to prevent cheating) */}
+          <section className={styles.problemPane} data-lenis-prevent="true">
             {/* Problem Content (Protected against text selection) */}
-            <div className={`${styles.probContent} ${styles.unselectable}`}>
+            <div className={`${styles.probContent} ${styles.unselectable}`} data-lenis-prevent="true">
               {currentProb ? (
                 <>
                   <div className={styles.probHeader}>
@@ -1850,8 +2201,8 @@ export default function ContestExamPage() {
             </div>
 
             {/* Plain Editor Body: Line numbers + Textarea */}
-            <div className={styles.plainEditorWrapper}>
-              <div className={styles.lineNumbers}>
+            <div className={styles.plainEditorWrapper} data-lenis-prevent="true">
+              <div ref={lineNumbersRef} className={styles.lineNumbers} data-lenis-prevent="true">
                 {linesArray.map((line) => (
                   <div key={line} className={styles.lineNum}>
                     {line}
@@ -1862,29 +2213,25 @@ export default function ContestExamPage() {
               <textarea
                 ref={textareaRef}
                 className={styles.plainTextarea}
+                data-lenis-prevent="true"
                 value={currentSol?.code || ''}
                 onChange={(e) => handleCodeChange(e.target.value)}
+                onScroll={handleTextareaScroll}
                 onKeyDown={handleKeyDown}
                 onPaste={(e) => {
                   e.preventDefault();
                   setCopyPasteAttempts((p) => p + 1);
-                  setViolationsCount((p) => p + 1);
-                  triggerAlertSound();
-                  showToast('Pasting code is strictly disabled!');
+                  recordViolation('Paste Blocked', 'Attempted to paste external content into editor');
                 }}
                 onCopy={(e) => {
                   e.preventDefault();
                   setCopyPasteAttempts((p) => p + 1);
-                  setViolationsCount((p) => p + 1);
-                  triggerAlertSound();
-                  showToast('Copying is strictly disabled!');
+                  recordViolation('Copy Blocked', 'Attempted to copy exam contents to clipboard');
                 }}
                 onCut={(e) => {
                   e.preventDefault();
                   setCopyPasteAttempts((p) => p + 1);
-                  setViolationsCount((p) => p + 1);
-                  triggerAlertSound();
-                  showToast('Cutting is strictly disabled!');
+                  recordViolation('Cut Blocked', 'Attempted to cut exam text');
                 }}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -1983,8 +2330,16 @@ export default function ContestExamPage() {
                       ) : testResults.length > 0 && testResults[activeCaseTab] ? (
                         <div className={styles.testCaseDetail}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: testResults[activeCaseTab].passed ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                              {testResults[activeCaseTab].passed ? '✓ Test Case Passed' : '✗ Test Case Failed'}
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: testResults[activeCaseTab].passed ? 'var(--accent-green)' : 'var(--accent-red)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              {testResults[activeCaseTab].passed ? (
+                                <>
+                                  <CheckCircle2 size={13} /> Test Case Passed
+                                </>
+                              ) : (
+                                <>
+                                  <AlertCircle size={13} /> Test Case Failed
+                                </>
+                              )}
                             </span>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                               {testResults[activeCaseTab].executionTimeMs || 0}ms

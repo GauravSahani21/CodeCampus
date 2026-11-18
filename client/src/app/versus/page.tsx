@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { X } from 'lucide-react';
 import { useVersusStore } from '@/store/useVersusStore';
 import { useAuthStore } from '@/store/authStore';
 import styles from './versus.module.css';
@@ -31,14 +32,14 @@ export default function VersusLandingPage() {
   const handleCreate = () => {
     if (!connected) return;
     setCreating(true);
-    createRoom();
+    createRoom(undefined, user?.username);
   };
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!joinCode.trim() || !connected) return;
     setJoining(true);
-    joinRoom(joinCode.trim().toUpperCase());
+    joinRoom(joinCode.trim().toUpperCase(), user?.username);
   };
 
   // Reset loading state on error
@@ -63,7 +64,7 @@ export default function VersusLandingPage() {
             <span className="gradient-text">Coding Duel</span>
           </h1>
           <p className={styles.landingSubtitle}>
-            Real-time competitive coding. Pick problems, set a timer, race to solve them first.
+            Real-time 1v1 competitive coding. Race against your opponent to solve the problem first!
           </p>
         </div>
 
@@ -79,7 +80,9 @@ export default function VersusLandingPage() {
         {error && (
           <div className={styles.errorBanner} onClick={clearError}>
             <span>{error}</span>
-            <button className={styles.errorDismiss}>✕</button>
+            <button className={styles.errorDismiss} aria-label="Dismiss error">
+              <X size={14} />
+            </button>
           </div>
         )}
 
@@ -88,7 +91,7 @@ export default function VersusLandingPage() {
           <div className={styles.modeCard}>
             <div className={styles.modeIcon}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg></div>
             <h2>Create a Room</h2>
-            <p>Set up a custom duel. Choose difficulty, problem count, and time limit. Share your room code with an opponent.</p>
+            <p>Set up a 1v1 duel. Choose difficulty and time limit. The first player to solve wins!</p>
             <button
               className={`btn btn-primary ${styles.modeBtn}`}
               onClick={handleCreate}

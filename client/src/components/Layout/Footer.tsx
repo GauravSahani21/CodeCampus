@@ -2,16 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Code2, Terminal, BookOpen, Trophy, Swords, GitBranch, MessageCircle, Zap } from 'lucide-react';
+import { Code2, Terminal, BookOpen, Trophy, Swords, Target, Award } from 'lucide-react';
 import styles from './Footer.module.css';
 
 const LINKS = {
   Platform: [
-    { href: '/problems',    label: 'Problems',   icon: Code2 },
-    { href: '/contests',    label: 'Contests',   icon: Trophy },
-    { href: '/versus',      label: 'Versus',     icon: Swords },
-    { href: '/ide',         label: 'Online IDE', icon: Terminal },
-    { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+    { href: '/problems',    label: 'Problem Bank',     icon: Code2 },
+    { href: '/contests',    label: 'Contest Arena',    icon: Trophy },
+    { href: '/versus',      label: '1v1 Versus',       icon: Swords },
+    { href: '/ide',         label: 'Web IDE Sandbox',  icon: Terminal },
+    { href: '/leaderboard', label: 'Leaderboard',      icon: Award },
+  ],
+  Learning: [
+    { href: '/learn',          label: 'Study Plans',      icon: BookOpen },
+    { href: '/student/browse', label: 'Explore Modules',  icon: Target },
   ],
   Account: [
     { href: '/auth/signup', label: 'Create Account', icon: null },
@@ -41,8 +45,10 @@ export default function Footer() {
             </svg>
             <span>CodeCampus</span>
           </div>
-          <p className={styles.tagline}>Code. Learn. Conquer.<br/>The platform that makes you type every character.</p>
-
+          <p className={styles.tagline}>
+            Code. Learn. Conquer.<br/>
+            High-performance algorithmic practice with rule-based diagnostics and real-time duels.
+          </p>
         </div>
 
         <div className={styles.links}>
@@ -50,8 +56,8 @@ export default function Footer() {
             <div key={section} className={styles.linkGroup}>
               <div className={styles.groupTitle}>{section}</div>
               {items.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href} className={styles.link}>
-                  {Icon && <Icon size={12} strokeWidth={2} />}
+                <Link key={label} href={href} className={styles.link}>
+                  {Icon && <Icon size={13} strokeWidth={2} style={{ marginRight: 6, opacity: 0.8 }} />}
                   {label}
                 </Link>
               ))}
@@ -63,10 +69,14 @@ export default function Footer() {
       <div className={styles.bottom}>
         <div className="container">
           <div className={styles.bottomInner}>
-            <span className={styles.copy}>© {new Date().getFullYear()} CodeCampus. Built for coders who care.</span>
+            <span className={styles.copy}>© {new Date().getFullYear()} CodeCampus. All rights reserved.</span>
             <div className={styles.bottomLinks}>
               <span className={styles.powered}>
-                Powered by <span style={{color:'var(--accent-green)'}}>Piston API</span> · <span style={{color:'var(--accent-blue)'}}>Monaco Editor</span>
+                <span style={{ color: 'var(--accent-green)' }}>Deterministic Diagnostics</span>
+                {' · '}
+                <span style={{ color: 'var(--accent-blue)' }}>13+ Language Sandbox</span>
+                {' · '}
+                <span style={{ color: 'var(--accent-purple)' }}>Live 1v1 Duels</span>
               </span>
             </div>
           </div>

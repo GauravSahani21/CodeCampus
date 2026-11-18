@@ -7,6 +7,8 @@ import {
   getLobby,
   updateLobbySettings,
   joinLobby,
+  updateLobbyUsernames,
+  setLobbyStarting,
   startLobbyMatch,
   updateLobbyStatus,
   migrateHost,
@@ -23,16 +25,22 @@ import type {
 
 const disconnectTimers = new Map<string, NodeJS.Timeout>();
 const matchTimers = new Map<string, NodeJS.Timeout>();
+const startingTimers = new Map<string, NodeJS.Timeout>();
 
 // ─── Socket Auth Helper (already set during io.use middleware) ────────────
 function getUserId(socket: Socket): string {
   return (socket as unknown as { userId: string }).userId ?? `guest_${socket.id}`;
 }
 
+function getUsername(socket: Socket): string {
+  return (socket as unknown as { username?: string }).username || '';
+}
+
 // ─── Main Handler ─────────────────────────────────────────────────────────
 
 export function registerVersusHandler(io: Server, socket: Socket): void {
   const userId = getUserId(socket);
+  const username = getUsername(socket);
 
   // ── room:create ──────────────────────────────────────────────────────────
   // Generates a unique 8-char uppercase room code, initialises Redis state,
@@ -40,7 +48,8 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
   socket.on('room:create', async (data?: RoomCreateEvent) => {
     try {
       const roomId = uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase();
-      let lobby = await createLobby(roomId, userId);
+      const hostName = data?.username?.trim() || username || 'Host';
+      let lobby = await createLobby(roomId, userId, hostName);
 
       if (data?.settings && Object.keys(data.settings).length > 0) {
         const updated = await updateLobbySettings(roomId, data.settings);
@@ -58,15 +67,16 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
   // ── room:join ────────────────────────────────────────────────────────────
   // Validates room existence and vacancy, registers opponent in Redis,
   // broadcasts `room:updated` to all occupants.
-  socket.on('room:join', async ({ roomId }: RoomJoinEvent) => {
+  socket.on('room:join', async (data: RoomJoinEvent) => {
     try {
+      const { roomId } = data;
       if (!roomId || typeof roomId !== 'string') {
         socket.emit('room:error', { message: 'Invalid room ID' });
         return;
       }
 
       const code = roomId.trim().toUpperCase();
-      const lobby = await getLobby(code);
+      let lobby = await getLobby(code);
 
       if (!lobby) {
         socket.emit('room:error', { message: 'Room not found. Check the code and try again.' });
@@ -77,6 +87,8 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
         return;
       }
 
+      const clientUsername = data.username?.trim();
+
       // Host re-joining (e.g., page refresh)
       if (lobby.hostId === userId) {
         // Cancel any pending host disconnect timer
@@ -86,6 +98,11 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
           disconnectTimers.delete(code);
           io.to(`room:${code}`).emit('room:host-reconnected');
         }
+        if (clientUsername && (!lobby.hostUsername || lobby.hostUsername === 'Guest' || lobby.hostUsername === 'Host')) {
+          const updated = await updateLobbyUsernames(code, { hostUsername: clientUsername });
+          if (updated) lobby = updated;
+          io.to(`room:${code}`).emit('room:updated', { lobby });
+        }
         socket.join(`room:${code}`);
         socket.emit('room:joined', { lobby });
         return;
@@ -93,6 +110,11 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
 
       // Opponent re-joining
       if (lobby.opponentId === userId) {
+        if (clientUsername && (!lobby.opponentUsername || lobby.opponentUsername === 'Guest' || lobby.opponentUsername === 'Opponent' || lobby.opponentUsername === 'Challenger')) {
+          const updated = await updateLobbyUsernames(code, { opponentUsername: clientUsername });
+          if (updated) lobby = updated;
+          io.to(`room:${code}`).emit('room:updated', { lobby });
+        }
         socket.join(`room:${code}`);
         socket.emit('room:joined', { lobby });
         return;
@@ -104,7 +126,8 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
         return;
       }
 
-      const updated = await joinLobby(code, userId);
+      const opponentName = clientUsername || username || 'Challenger';
+      const updated = await joinLobby(code, userId, opponentName);
       socket.join(`room:${code}`);
       socket.emit('room:joined', { lobby: updated });
       io.to(`room:${code}`).emit('room:updated', { lobby: updated });
@@ -166,7 +189,7 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
         }
         problems = await Problem.aggregate([
           { $match: matchFilter },
-          { $sample: { size: Math.min(settings.questionCount, 10) } },
+          { $sample: { size: 1 } },
           {
             $project: {
               _id: 1, title: 1, slug: 1, difficulty: 1, tags: 1,
@@ -176,8 +199,8 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
           },
         ]);
       } else {
-        // Specific mode: fetch by provided IDs
-        const ids = settings.specificQuestionIds.slice(0, 10);
+        // Specific mode: fetch the selected problem (exactly 1 problem)
+        const ids = settings.specificQuestionIds.slice(0, 1);
         problems = await Problem.find(
           { _id: { $in: ids }, isPublished: true },
           {
@@ -185,7 +208,7 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
             description: 1, examples: 1, constraints: 1, hints: 1,
             starterTemplates: 1, testCases: 1,
           }
-        ).limit(settings.questionCount);
+        ).limit(1);
       }
 
       if (problems.length === 0) {
@@ -196,27 +219,60 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
       }
 
       const questionIds = problems.map((p) => (p._id as { toString(): string }).toString());
-      await startLobbyMatch(roomId, questionIds);
+      
+      // Transition room status to STARTING and broadcast starting intermission screen
+      await setLobbyStarting(roomId, questionIds);
+      const startingLobby = await getLobby(roomId);
 
-      const now = Date.now();
-      const endTimestamp = now + settings.timeLimitMinutes * 60 * 1000;
-      const updatedLobby = await getLobby(roomId);
+      const countdownSeconds = 4;
+      const startsAt = Date.now() + countdownSeconds * 1000;
 
-      io.to(`room:${roomId}`).emit('match:started', {
-        lobby: updatedLobby,
+      io.to(`room:${roomId}`).emit('match:starting', {
+        lobby: startingLobby,
         problems,
-        startTimestamp: now,
-        endTimestamp,
+        startsAt,
+        countdownSeconds,
       });
 
-      // Start match timer
-      const timeoutMs = settings.timeLimitMinutes * 60 * 1000;
-      const timer = setTimeout(async () => {
-        matchTimers.delete(roomId);
-        await updateLobbyStatus(roomId, 'COMPLETED');
-        io.to(`room:${roomId}`).emit('match:ended', { message: 'Time is up!' });
-      }, timeoutMs);
-      matchTimers.set(roomId, timer);
+      // Clear any prior starting timer for this room
+      if (startingTimers.has(roomId)) {
+        clearTimeout(startingTimers.get(roomId)!);
+        startingTimers.delete(roomId);
+      }
+
+      // After countdown, transition to IN_PROGRESS and start match timer
+      const startingTimer = setTimeout(async () => {
+        startingTimers.delete(roomId);
+        const current = await getLobby(roomId);
+        if (!current || current.status !== 'STARTING') return;
+
+        await startLobbyMatch(roomId, questionIds);
+
+        const now = Date.now();
+        const endTimestamp = now + settings.timeLimitMinutes * 60 * 1000;
+        const updatedLobby = await getLobby(roomId);
+
+        io.to(`room:${roomId}`).emit('match:started', {
+          lobby: updatedLobby,
+          problems,
+          startTimestamp: now,
+          endTimestamp,
+        });
+
+        // Start match timer
+        const timeoutMs = settings.timeLimitMinutes * 60 * 1000;
+        const timer = setTimeout(async () => {
+          matchTimers.delete(roomId);
+          await updateLobbyStatus(roomId, 'COMPLETED');
+          io.to(`room:${roomId}`).emit('match:ended', {
+            reason: 'TIMEOUT',
+            message: 'Time is up! Neither player solved the problem.',
+          });
+        }, timeoutMs);
+        matchTimers.set(roomId, timer);
+      }, countdownSeconds * 1000);
+
+      startingTimers.set(roomId, startingTimer);
     } catch (err) {
       console.error('[room:start-match]', err);
       socket.emit('room:error', { message: 'Failed to start match. Please try again.' });
@@ -231,7 +287,8 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
 
   // ── match:test-update ────────────────────────────────────────────────────
   // Broadcasts real-time compilation/test progress to the opposing player.
-  socket.on('match:test-update', (data: MatchTestUpdateEvent) => {
+  // Sudden Death: Ends match immediately when first player solves the problem!
+  socket.on('match:test-update', async (data: MatchTestUpdateEvent) => {
     if (!data.roomId) return;
     socket.to(`room:${data.roomId}`).emit('match:test-update', {
       userId,
@@ -239,6 +296,79 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
       passedCount: data.passedCount,
       totalCount: data.totalCount,
       isAccepted: data.isAccepted,
+    });
+
+    if (data.isAccepted) {
+      const lobby = await getLobby(data.roomId);
+      if (lobby && lobby.status === 'IN_PROGRESS') {
+        if (matchTimers.has(data.roomId)) {
+          clearTimeout(matchTimers.get(data.roomId)!);
+          matchTimers.delete(data.roomId);
+        }
+
+        await updateLobbyStatus(data.roomId, 'COMPLETED');
+
+        const winnerUsername =
+          username ||
+          (lobby.hostId === userId ? lobby.hostUsername : lobby.opponentUsername) ||
+          'Player';
+
+        io.to(`room:${data.roomId}`).emit('match:ended', {
+          winnerId: userId,
+          winnerUsername,
+          reason: 'SOLVED',
+          message: `${winnerUsername} solved the problem first and won the match!`,
+        });
+      }
+    }
+  });
+
+  // ── match:forfeit ────────────────────────────────────────────────────────
+  // When a player exceeds 3 proctoring violations (or forfeits),
+  // they are disqualified and the opponent immediately wins!
+  socket.on('match:forfeit', async (data: { roomId: string; reason?: string }) => {
+    if (!data.roomId) return;
+    try {
+      const lobby = await getLobby(data.roomId);
+      if (lobby && lobby.status === 'IN_PROGRESS') {
+        if (matchTimers.has(data.roomId)) {
+          clearTimeout(matchTimers.get(data.roomId)!);
+          matchTimers.delete(data.roomId);
+        }
+
+        await updateLobbyStatus(data.roomId, 'COMPLETED');
+
+        const winnerId = lobby.hostId === userId ? lobby.opponentId : lobby.hostId;
+        const winnerUsername =
+          lobby.hostId === userId
+            ? (lobby.opponentUsername || 'Opponent')
+            : (lobby.hostUsername || 'Host');
+        const cheaterUsername =
+          username ||
+          (lobby.hostId === userId ? lobby.hostUsername : lobby.opponentUsername) ||
+          'Player';
+
+        io.to(`room:${data.roomId}`).emit('match:ended', {
+          winnerId,
+          winnerUsername,
+          forfeitedUserId: userId,
+          reason: 'FORFEIT',
+          message: `${cheaterUsername} exceeded maximum allowed violations (3/3) and was disqualified for cheating. ${winnerUsername} wins the match!`,
+        });
+      }
+    } catch (err) {
+      console.error('[match:forfeit]', err);
+    }
+  });
+
+  // ── match:violation ──────────────────────────────────────────────────────
+  // Broadcasts a proctoring violation warning event to the opponent for transparency.
+  socket.on('match:violation', (data: { roomId: string; violationsCount: number; type: string }) => {
+    if (!data.roomId) return;
+    socket.to(`room:${data.roomId}`).emit('match:opponent-violation', {
+      userId,
+      violationsCount: data.violationsCount,
+      type: data.type,
     });
   });
 
@@ -278,6 +408,11 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
               if (matchTimers.has(roomId)) {
                 clearTimeout(matchTimers.get(roomId)!);
                 matchTimers.delete(roomId);
+              }
+
+              if (startingTimers.has(roomId)) {
+                clearTimeout(startingTimers.get(roomId)!);
+                startingTimers.delete(roomId);
               }
             }
             disconnectTimers.delete(roomId);

@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import {
   Code2, Users, TrendingUp, CheckCircle2, Clock,
   ChevronRight, Plus, AlertCircle, Zap, Trophy,
-  BookOpen, Sparkles, ArrowUpRight, ShieldCheck, Layers, FileText,
-  Activity, Cpu, ArrowRight
+  BookOpen, ArrowUpRight, ShieldCheck, Layers, FileText,
+  Activity, ArrowRight
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -65,7 +65,7 @@ export default function InstructorDashboard() {
             Welcome back, {user?.username || 'Instructor'}
           </h1>
           <p className={styles.heroSubtitle}>
-            Author algorithmic challenges, launch proctored coding assessments, and track automated AI evaluations in real time.
+            Author algorithmic challenges, launch proctored coding assessments, and track automated evaluations in real time.
           </p>
         </div>
 
@@ -116,7 +116,7 @@ export default function InstructorDashboard() {
         </div>
 
 
-        {/* Metric 4: AI & Submissions */}
+        {/* Metric 4: Submissions */}
         <div className={styles.statCard}>
           <div className={styles.statHeader}>
             <div className={`${styles.statIcon} ${styles.icon_emerald}`}>
@@ -129,7 +129,7 @@ export default function InstructorDashboard() {
           <div className={styles.statValue}>{stats.totalSubmissions}</div>
           <div className={styles.statLabel}>Student Submissions</div>
           <div className={styles.statSub}>
-            {stats.aiAnalysesRun} AI analyses completed
+            {stats.totalSubmissions} evaluations completed
           </div>
         </div>
       </div>
@@ -297,7 +297,7 @@ export default function InstructorDashboard() {
           )}
         </div>
 
-        {/* Right Column: Creator Studio & AI Assistant */}
+        {/* Right Column: Creator Studio */}
         <div>
           {/* Creator Studio Card */}
           <div className={styles.card}>
@@ -330,19 +330,7 @@ export default function InstructorDashboard() {
                 </div>
                 <ChevronRight size={14} className={styles.studioArrow} />
               </Link>
-
             </div>
-          </div>
-
-          {/* AI Academic Insights */}
-          <div className={styles.aiInsightBox}>
-            <div className={styles.aiInsightHeader}>
-              <Cpu size={16} />
-              Automated AI Evaluation Engine
-            </div>
-            <p className={styles.aiInsightText}>
-              Every student submission is dynamically benchmarked against edge cases. When candidates struggle with conceptual hurdles (e.g. recursion, dynamic programming), AI generates tailored course recommendations instantly.
-            </p>
           </div>
         </div>
       </div>

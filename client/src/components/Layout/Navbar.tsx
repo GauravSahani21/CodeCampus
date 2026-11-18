@@ -96,6 +96,10 @@ export default function Navbar() {
     router.push('/');
   };
 
+  if (pathname?.startsWith('/problems/') && pathname !== '/problems') {
+    return null;
+  }
+
   return (
     <nav className="navbar">
       <div className="navbar-inner">
@@ -218,17 +222,7 @@ export default function Navbar() {
                       My Profile
                     </Link>
 
-                    {user.role === 'user' && (
-                      <Link
-                        href="/student/dashboard"
-                        className={styles.dropdownItem}
-                        onClick={() => setDropdownOpen(false)}
-                      >
-                        <LayoutDashboard size={15} color="var(--accent-green)" />
-                        Student Dashboard
-                      </Link>
-                    )}
-
+                    {/* Role Dashboards */}
                     {(user.role === 'instructor' || user.role === 'admin') && (
                       <Link
                         href="/instructor/dashboard"
@@ -325,12 +319,6 @@ export default function Navbar() {
                 <User size={16} />
                 My Profile
               </Link>
-              {user.role === 'user' && (
-                <Link href="/student/dashboard" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
-                  <LayoutDashboard size={16} color="var(--accent-green)" />
-                  Student Dashboard
-                </Link>
-              )}
               {(user.role === 'instructor' || user.role === 'admin') && (
                 <Link href="/instructor/dashboard" className={styles.mobileLink} onClick={() => setMobileOpen(false)}>
                   <LayoutDashboard size={16} color="#38bdf8" />

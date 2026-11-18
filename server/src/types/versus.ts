@@ -21,6 +21,8 @@ export interface LobbyState {
   roomId: string;
   hostId: string;
   opponentId: string;
+  hostUsername?: string;
+  opponentUsername?: string;
   settings: LobbySettings;
   status: RoomStatus;
   currentQuestions: string[];
@@ -45,10 +47,12 @@ export interface ProblemMeta {
 
 export interface RoomCreateEvent {
   settings?: Partial<LobbySettings>;
+  username?: string;
 }
 
 export interface RoomJoinEvent {
   roomId: string;
+  username?: string;
 }
 
 export interface RoomUpdateSettingsEvent {
@@ -91,6 +95,13 @@ export interface RoomSettingsChangedPayload {
   settings: LobbySettings;
 }
 
+export interface MatchStartingPayload {
+  lobby: LobbyState;
+  problems: ProblemMeta[];
+  startsAt: number;
+  countdownSeconds: number;
+}
+
 export interface MatchStartedPayload {
   lobby: LobbyState;
   problems: ProblemMeta[];
@@ -112,4 +123,23 @@ export interface RoomErrorPayload {
 
 export interface RoomHostDisconnectedPayload {
   timeout: number; // seconds remaining for host to reconnect
+}
+
+export interface MatchForfeitEvent {
+  roomId: string;
+  reason?: string;
+}
+
+export interface MatchViolationEvent {
+  roomId: string;
+  violationsCount: number;
+  type: string;
+}
+
+export interface MatchEndedPayload {
+  winnerId?: string;
+  winnerUsername?: string;
+  forfeitedUserId?: string;
+  reason?: 'SOLVED' | 'TIMEOUT' | 'FORFEIT';
+  message?: string;
 }

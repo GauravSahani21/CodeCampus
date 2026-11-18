@@ -54,10 +54,13 @@ export default function CodeEditor({
         smoothScrolling: true,
         cursorBlinking: 'phase',
         cursorSmoothCaretAnimation: 'on',
-        padding: { top: 12, bottom: 12 },
+        padding: { top: 8, bottom: 8 },
         lineNumbers: 'on',
-        glyphMargin: true,
+        glyphMargin: false,
+        lineDecorationsWidth: 0,
+        lineNumbersMinChars: 3,
         folding: true,
+        showFoldingControls: 'mouseover',
         bracketPairColorization: { enabled: true },
       });
 
@@ -82,7 +85,12 @@ export default function CodeEditor({
         onChange={(val) => onChange(val || '')}
         theme="vs-dark"
         onMount={handleMount}
-        options={{ automaticLayout: true }}
+        options={{
+          automaticLayout: true,
+          glyphMargin: false,
+          lineDecorationsWidth: 0,
+          lineNumbersMinChars: 3,
+        }}
         loading={
           <div className={styles.editorLoading}>
             <div className="spinner" />

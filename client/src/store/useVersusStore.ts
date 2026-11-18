@@ -33,7 +33,9 @@ export interface ProblemMeta {
 export interface LobbyState {
   roomId: string;
   hostId: string;
+  hostUsername?: string;
   opponentId: string;
+  opponentUsername?: string;
   settings: LobbySettings;
   status: RoomStatus;
   currentQuestions: string[];
@@ -47,6 +49,14 @@ export interface OpponentTestUpdate {
   isAccepted: boolean;
 }
 
+export interface MatchEndedPayload {
+  winnerId?: string;
+  winnerUsername?: string;
+  forfeitedUserId?: string;
+  reason?: 'SOLVED' | 'TIMEOUT' | 'FORFEIT';
+  message?: string;
+}
+
 // ─── Store Interface ──────────────────────────────────────────────────────
 
 interface VersusState {
@@ -57,17 +67,22 @@ interface VersusState {
   problems: ProblemMeta[];
   startTimestamp: number | null;
   endTimestamp: number | null;
+  isStarting: boolean;
+  startsAt: number | null;
+  countdownSeconds: number;
   opponentTyping: boolean;
   opponentUpdate: OpponentTestUpdate | null;
+  opponentViolations: number;
   error: string | null;
   hostDisconnectTimeout: number | null;
   matchEnded: boolean;
+  matchResult: MatchEndedPayload | null;
 
   // Actions
   connectSocket: (token?: string) => void;
   disconnectSocket: () => void;
-  createRoom: (settings?: Partial<LobbySettings>) => void;
-  joinRoom: (roomId: string) => void;
+  createRoom: (settings?: Partial<LobbySettings>, username?: string) => void;
+  joinRoom: (roomId: string, username?: string) => void;
   updateSettings: (settings: Partial<LobbySettings>) => void;
   startChallenge: () => void;
   sendTyping: () => void;
@@ -77,6 +92,8 @@ interface VersusState {
     totalCount: number;
     isAccepted: boolean;
   }) => void;
+  sendForfeit: (reason?: string) => void;
+  sendViolation: (violationsCount: number, type: string) => void;
   clearError: () => void;
   reset: () => void;
 }
@@ -100,11 +117,16 @@ export const useVersusStore = create<VersusState>((set, get) => ({
   problems: [],
   startTimestamp: null,
   endTimestamp: null,
+  isStarting: false,
+  startsAt: null,
+  countdownSeconds: 4,
   opponentTyping: false,
   opponentUpdate: null,
+  opponentViolations: 0,
   error: null,
   hostDisconnectTimeout: null,
   matchEnded: false,
+  matchResult: null,
 
   connectSocket: (token?: string) => {
     const { socket } = get();
@@ -190,6 +212,29 @@ export const useVersusStore = create<VersusState>((set, get) => ({
 
     // ── Match events ───────────────────────────────────────────────────────
     sock.on(
+      'match:starting',
+      ({
+        lobby,
+        problems,
+        startsAt,
+        countdownSeconds,
+      }: {
+        lobby: LobbyState;
+        problems: ProblemMeta[];
+        startsAt: number;
+        countdownSeconds: number;
+      }) => {
+        set({
+          lobby,
+          problems,
+          isStarting: true,
+          startsAt,
+          countdownSeconds: countdownSeconds || 4,
+        });
+      }
+    );
+
+    sock.on(
       'match:started',
       ({
         lobby,
@@ -202,7 +247,14 @@ export const useVersusStore = create<VersusState>((set, get) => ({
         startTimestamp: number;
         endTimestamp: number;
       }) => {
-        set({ lobby, problems, startTimestamp, endTimestamp });
+        set({
+          lobby,
+          problems,
+          isStarting: false,
+          startsAt: null,
+          startTimestamp,
+          endTimestamp,
+        });
       }
     );
 
@@ -215,8 +267,12 @@ export const useVersusStore = create<VersusState>((set, get) => ({
       set({ opponentUpdate: data });
     });
 
-    sock.on('match:ended', () => {
-      set({ matchEnded: true });
+    sock.on('match:opponent-violation', (data: { violationsCount: number }) => {
+      set({ opponentViolations: data.violationsCount });
+    });
+
+    sock.on('match:ended', (data?: MatchEndedPayload) => {
+      set({ matchEnded: true, matchResult: data || null });
     });
 
     set({ socket: sock });
@@ -227,12 +283,12 @@ export const useVersusStore = create<VersusState>((set, get) => ({
     set({ socket: null, connected: false, lobby: null, roomId: null });
   },
 
-  createRoom: (settings) => {
-    get().socket?.emit('room:create', { settings: settings ?? {} });
+  createRoom: (settings, username) => {
+    get().socket?.emit('room:create', { settings: settings ?? {}, username });
   },
 
-  joinRoom: (roomId) => {
-    get().socket?.emit('room:join', { roomId });
+  joinRoom: (roomId, username) => {
+    get().socket?.emit('room:join', { roomId, username });
   },
 
   updateSettings: (settings) => {
@@ -255,6 +311,16 @@ export const useVersusStore = create<VersusState>((set, get) => ({
     if (socket && roomId) socket.emit('match:test-update', { roomId, ...data });
   },
 
+  sendForfeit: (reason?: string) => {
+    const { socket, roomId } = get();
+    if (socket && roomId) socket.emit('match:forfeit', { roomId, reason });
+  },
+
+  sendViolation: (violationsCount: number, type: string) => {
+    const { socket, roomId } = get();
+    if (socket && roomId) socket.emit('match:violation', { roomId, violationsCount, type });
+  },
+
   clearError: () => set({ error: null }),
 
   reset: () =>
@@ -264,9 +330,15 @@ export const useVersusStore = create<VersusState>((set, get) => ({
       problems: [],
       startTimestamp: null,
       endTimestamp: null,
+      isStarting: false,
+      startsAt: null,
+      countdownSeconds: 4,
       opponentTyping: false,
       opponentUpdate: null,
+      opponentViolations: 0,
       error: null,
       hostDisconnectTimeout: null,
+      matchEnded: false,
+      matchResult: null,
     }),
 }));

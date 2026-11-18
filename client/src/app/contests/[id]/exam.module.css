@@ -116,22 +116,226 @@
   transform: none;
 }
 
-/* Exam Body: 2 Panes */
+/* Exam Body: Panes */
 .examBody {
   display: flex;
   flex: 1;
   overflow: hidden;
   height: calc(100vh - 56px);
+  min-height: 0;
 }
 
-/* Left Pane: Problem Description */
+/* Blank Exam Left Sidebar */
+.blankExamSidebar {
+  width: 250px;
+  min-width: 240px;
+  max-width: 280px;
+  background: #0d1117;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.blankSidebarHeader {
+  height: 48px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  background: #090d13;
+  flex-shrink: 0;
+}
+
+.blankSidebarTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.blankSidebarBadge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sidebarSectionSwitcher {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  background: #0a0e14;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.sidebarSectionBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidebarSectionBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.sidebarSectionBtnActive {
+  background: rgba(57, 211, 83, 0.12);
+  border-color: rgba(57, 211, 83, 0.3);
+  color: var(--accent-green);
+}
+
+.sidebarSectionBtnActiveBlue {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: var(--accent-blue);
+}
+
+.blankSidebarList {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overscroll-behavior: contain;
+}
+
+.blankSidebarCard {
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 9px 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.blankSidebarCard:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.blankSidebarCardActive {
+  background: rgba(57, 211, 83, 0.08) !important;
+  border-color: rgba(57, 211, 83, 0.4) !important;
+  box-shadow: 0 0 12px rgba(57, 211, 83, 0.1);
+}
+
+.blankSidebarCardTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.blankSidebarNumPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.blankSidebarNumPillSolved {
+  background: var(--accent-green);
+  color: #0d1117;
+}
+
+.blankSidebarProbTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e6edf3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.blankSidebarCardMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+}
+
+.blankSidebarPoints {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.attemptedBadge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent-green);
+  background: rgba(57, 211, 83, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.blankSidebarFooter {
+  padding: 12px 14px;
+  background: #090d13;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.sidebarProgressRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Middle Pane: Problem Description */
 .problemPane {
-  width: 45%;
+  flex: 1;
+  min-width: 320px;
   border-right: 1px solid var(--border-color);
   background: var(--bg-card);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
+  min-height: 0;
 }
 
 .problemTabs {
@@ -171,6 +375,8 @@
   padding: 24px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 
 .probHeader {
@@ -271,11 +477,14 @@
 
 /* Right Pane: Plain Editor */
 .editorPane {
-  width: 55%;
+  flex: 1.2;
+  min-width: 380px;
   display: flex;
   flex-direction: column;
   background: #0a0e14;
   overflow: hidden;
+  height: 100%;
+  min-height: 0;
 }
 
 .editorToolbar {
@@ -329,6 +538,7 @@
   overflow: hidden;
   position: relative;
   background: #090d13;
+  min-height: 0;
 }
 
 .lineNumbers {
@@ -344,6 +554,7 @@
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   box-sizing: border-box;
   overflow: hidden;
+  min-height: 0;
 }
 
 .lineNum {
@@ -365,6 +576,8 @@
   white-space: pre;
   tab-size: 4;
   box-sizing: border-box;
+  overscroll-behavior: contain;
+  min-height: 0;
 }
 
 .editorFooter {

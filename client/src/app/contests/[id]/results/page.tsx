@@ -94,6 +94,14 @@ export default function ContestResultsPage() {
   const hasMCQs = (submission.mcqSubmissions && submission.mcqSubmissions.length > 0) || submission.contestType === 'superset';
   const passedMCQs = submission.mcqSubmissions?.filter((m: any) => m.isCorrect).length || 0;
   const totalMCQs = submission.mcqSubmissions?.length || 0;
+  const isCheating = Boolean(
+    submission.isCheating ||
+    submission.isDisqualified ||
+    submission.status === 'Cheating' ||
+    submission.status === 'Disqualified' ||
+    (submission.proctoringData?.violationsCount || 0) >= 3 ||
+    (submission.proctoringData?.tabSwitches || 0) >= 3
+  );
 
   return (
     <main className={styles.container}>
@@ -103,8 +111,12 @@ export default function ContestResultsPage() {
             <ArrowLeft size={14} /> Back to Contests
           </Link>
           <h1 className={styles.title}>
-            <Trophy size={28} style={{ color: 'var(--accent-green)' }} />
-            Exam Evaluation & AI Learning Report
+            {isCheating ? (
+              <ShieldAlert size={28} style={{ color: 'var(--accent-red)' }} />
+            ) : (
+              <Trophy size={28} style={{ color: 'var(--accent-green)' }} />
+            )}
+            Exam Evaluation &amp; Learning Report
           </h1>
           <p className={styles.subtitle}>
             {contest?.title || 'Contest'} · Submitted on {new Date(submission.submittedAt).toLocaleDateString()}
@@ -113,20 +125,71 @@ export default function ContestResultsPage() {
                 Interactive Mode (Coding + MCQs)
               </span>
             )}
+            {isCheating && (
+              <span style={{ marginLeft: '10px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(248,81,73,0.2)', color: 'var(--accent-red)', fontSize: '0.75rem', fontWeight: 800 }}>
+                FLAGGED AS CHEATING
+              </span>
+            )}
           </p>
         </div>
 
+        {/* Academic Integrity Flagged as Cheating Banner */}
+        {isCheating && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '14px',
+              padding: '18px 22px',
+              background: 'rgba(248, 81, 73, 0.12)',
+              border: '1px solid rgba(248, 81, 73, 0.4)',
+              borderRadius: '14px',
+              marginBottom: '28px',
+            }}
+          >
+            <ShieldAlert size={30} style={{ color: 'var(--accent-red)', flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-red)', marginBottom: '4px' }}>
+                CONTEST TERMINATED — FLAGGED AS CHEATING
+              </div>
+              <div style={{ fontSize: '0.86rem', color: '#c9d1d9', lineHeight: 1.55 }}>
+                {submission.cheatingReason ||
+                  submission.disqualificationReason ||
+                  'Academic Dishonesty: This assessment was automatically terminated and permanently flagged as cheating because 3 proctoring violations were recorded. All scores have been revoked and set to 0.'}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Score Overview Card */}
-        <div className={styles.scoreCard}>
-          <div className={styles.scoreCircle}>
-            <span className={styles.scorePercentage}>{submission.percentage}%</span>
-            <span className={styles.scoreText}>Score</span>
+        <div className={styles.scoreCard} style={isCheating ? { borderColor: 'rgba(248, 81, 73, 0.4)' } : undefined}>
+          <div
+            className={styles.scoreCircle}
+            style={
+              isCheating
+                ? {
+                    background: 'rgba(248, 81, 73, 0.08)',
+                    borderColor: 'var(--accent-red)',
+                    boxShadow: '0 0 30px rgba(248, 81, 73, 0.25)',
+                  }
+                : undefined
+            }
+          >
+            <span
+              className={styles.scorePercentage}
+              style={isCheating ? { color: 'var(--accent-red)' } : undefined}
+            >
+              {isCheating ? '0%' : `${submission.percentage}%`}
+            </span>
+            <span className={styles.scoreText}>
+              {isCheating ? 'CHEATING' : 'Score'}
+            </span>
           </div>
 
           <div className={styles.scoreMeta}>
-            <div className={styles.scorePoints}>
-              {submission.totalScore} / {submission.maxScore} Points Earned
-              {hasMCQs && (
+            <div className={styles.scorePoints} style={isCheating ? { color: 'var(--accent-red)' } : undefined}>
+              {isCheating ? '0' : submission.totalScore} / {submission.maxScore} Points {isCheating ? '(Flagged as Cheating)' : 'Earned'}
+              {hasMCQs && !isCheating && (
                 <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500, marginLeft: '14px' }}>
                   (Coding: <strong style={{ color: 'var(--accent-green)' }}>{submission.codingScore ?? submission.totalScore}</strong> pts · MCQs: <strong style={{ color: 'var(--accent-blue)' }}>{submission.mcqScore ?? 0}</strong> pts)
                 </span>
@@ -134,28 +197,32 @@ export default function ContestResultsPage() {
             </div>
             <div className={styles.metaTags}>
               <div className={styles.metaTag}>
-                <Clock size={14} style={{ color: 'var(--accent-green)' }} />
+                <Clock size={14} style={{ color: isCheating ? 'var(--accent-red)' : 'var(--accent-green)' }} />
                 <span>Time Spent: {formatSeconds(submission.timeSpentSeconds || 0)}</span>
               </div>
               <div className={styles.metaTag}>
                 <Layers size={14} style={{ color: 'var(--accent-blue)' }} />
                 <span>
                   Passed Problems:{' '}
-                  {submission.problemSubmissions?.filter((p: any) => p.passedAllTests).length} /{' '}
-                  {submission.problemSubmissions?.length}
+                  {isCheating
+                    ? 0
+                    : submission.problemSubmissions?.filter((p: any) => p.passedAllTests).length || 0} /{' '}
+                  {submission.problemSubmissions?.length || 0}
                 </span>
               </div>
               {hasMCQs && totalMCQs > 0 && (
                 <div className={styles.metaTag}>
-                  <CheckSquare size={14} style={{ color: 'var(--accent-green)' }} />
+                  <CheckSquare size={14} style={{ color: isCheating ? 'var(--accent-red)' : 'var(--accent-green)' }} />
                   <span>
-                    Passed MCQs: {passedMCQs} / {totalMCQs}
+                    Passed MCQs: {isCheating ? 0 : passedMCQs} / {totalMCQs}
                   </span>
                 </div>
               )}
               <div className={styles.metaTag}>
-                <Sparkles size={14} style={{ color: 'var(--accent-green)' }} />
-                <span>Status: {submission.status.toUpperCase()}</span>
+                <ShieldAlert size={14} style={{ color: isCheating ? 'var(--accent-red)' : 'var(--accent-green)' }} />
+                <span style={isCheating ? { color: 'var(--accent-red)', fontWeight: 800 } : undefined}>
+                  Status: {isCheating ? 'FLAGGED AS CHEATING' : submission.status.toUpperCase()}
+                </span>
               </div>
             </div>
           </div>
@@ -165,11 +232,15 @@ export default function ContestResultsPage() {
         <div className={styles.proctorCard}>
           <div className={styles.proctorTopRow}>
             <div className={styles.proctorTitleWrap}>
-              <Shield size={22} style={{ color: 'var(--accent-green)' }} />
+              <Shield size={22} style={{ color: isCheating ? 'var(--accent-red)' : 'var(--accent-green)' }} />
               <span className={styles.proctorTitle}>Exam Integrity &amp; Automated Proctoring Audit</span>
             </div>
 
-            {(submission.proctoringData?.violationsCount || 0) === 0 ? (
+            {isCheating ? (
+              <div className={styles.proctorBadgeWarn} style={{ background: 'rgba(248, 81, 73, 0.2)', borderColor: 'rgba(248, 81, 73, 0.4)', color: 'var(--accent-red)' }}>
+                <ShieldAlert size={14} /> Flagged as Cheating · 3/3 Violations Reached
+              </div>
+            ) : (submission.proctoringData?.violationsCount || 0) === 0 ? (
               <div className={styles.proctorBadgeClean}>
                 <ShieldCheck size={14} /> 100% Integrity Score · Verified Clean Session
               </div>

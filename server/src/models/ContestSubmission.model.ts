@@ -76,7 +76,11 @@ export interface IContestSubmission extends Document {
   totalScore: number;
   maxScore: number;
   percentage: number;
-  status: 'Completed' | 'In-Progress';
+  status: 'Completed' | 'In-Progress' | 'Disqualified' | 'Cheating';
+  isDisqualified?: boolean;
+  isCheating?: boolean;
+  disqualificationReason?: string;
+  cheatingReason?: string;
   aiReport: IAIEvaluationReport;
   proctoringData?: IProctoringData;
   submittedAt: Date;
@@ -135,7 +139,11 @@ const ContestSubmissionSchema = new Schema<IContestSubmission>(
     totalScore: { type: Number, default: 0 },
     maxScore: { type: Number, default: 100 },
     percentage: { type: Number, default: 0 },
-    status: { type: String, enum: ['Completed', 'In-Progress'], default: 'Completed' },
+    status: { type: String, enum: ['Completed', 'In-Progress', 'Disqualified', 'Cheating'], default: 'Completed' },
+    isDisqualified: { type: Boolean, default: false },
+    isCheating: { type: Boolean, default: false },
+    disqualificationReason: { type: String, default: '' },
+    cheatingReason: { type: String, default: '' },
     aiReport: {
       summary: { type: String, default: '' },
       mistakes: [

@@ -8,6 +8,7 @@ import { executeWithDockerCompiler } from '../services/dockerCompiler.service';
 import { executeLocally } from '../services/piston.service';
 import { evaluateUserBadges } from '../services/badge.service';
 import { wrapCodeWithDriver } from '../services/driverWrapper.service';
+import { recordSubmission } from '../services/skillAnalysis.service';
 
 // ─── Priority execution: Judge0 → Docker → Local ──────────────────────────────
 async function executeCode(language: string, sourceCode: string, stdin: string) {
@@ -195,10 +196,22 @@ export const submitCode = async (req: Request & { user?: { id: string } }, res: 
       });
       const isFirstTrySuccess = previousAttempts === 0;
 
-      await User.findByIdAndUpdate(userId, {
-        $addToSet: { solvedProblems: problemId },
-        $inc: { 'stats.solved': 1 },
-      });
+      // Check if user has already solved this problem previously
+      const currentUser = await User.findById(userId).select('solvedProblems');
+      const alreadySolved = currentUser?.solvedProblems?.some(
+        (id: any) => id.toString() === problemId.toString()
+      );
+
+      if (!alreadySolved) {
+        await User.findByIdAndUpdate(userId, {
+          $addToSet: { solvedProblems: problemId },
+          $inc: { 'stats.solved': 1 },
+        });
+      } else {
+        await User.findByIdAndUpdate(userId, {
+          $addToSet: { solvedProblems: problemId },
+        });
+      }
 
       newBadges = await evaluateUserBadges(userId, {
         isFirstTrySuccess,
@@ -207,6 +220,15 @@ export const submitCode = async (req: Request & { user?: { id: string } }, res: 
     }
     await User.findByIdAndUpdate(userId, { $inc: { 'stats.attempted': 1 } });
     await updateUserActivity(userId);
+
+    // Update student's deterministic skill profile & topic weakness tracking
+    recordSubmission(userId, problem, {
+      _id: submission._id,
+      status: finalStatus,
+      language,
+      stderr: globalStderr,
+      submittedAt: new Date(),
+    }).catch((err) => console.error('[SkillAnalysis] Error:', err));
 
     res.json({
       submissionId: submission.id,

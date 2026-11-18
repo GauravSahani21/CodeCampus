@@ -85,4 +85,17 @@ const ProblemSchema = new Schema<IProblem>(
 );
 ProblemSchema.index({ difficulty: 1, tags: 1 });
 
+ProblemSchema.pre('save', async function () {
+  if (this.isNew && (this.questionId === undefined || this.questionId === null)) {
+    const ProblemModel = this.constructor as mongoose.Model<IProblem>;
+    const lastProblem = await ProblemModel.findOne({ questionId: { $exists: true, $ne: null } })
+      .sort({ questionId: -1 })
+      .select('questionId')
+      .lean();
+    this.questionId = (lastProblem?.questionId && lastProblem.questionId > 0)
+      ? lastProblem.questionId + 1
+      : 1;
+  }
+});
+
 export default mongoose.model<IProblem>('Problem', ProblemSchema);
