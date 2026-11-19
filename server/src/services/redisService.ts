@@ -150,6 +150,15 @@ export async function joinLobby(roomId: string, userId: string, opponentUsername
   return lobby;
 }
 
+export async function removeOpponent(roomId: string): Promise<LobbyState | null> {
+  const lobby = await getLobby(roomId);
+  if (!lobby) return null;
+  await hset(`room:${roomId}`, { opponentId: '', opponentUsername: '' });
+  lobby.opponentId = '';
+  lobby.opponentUsername = '';
+  return lobby;
+}
+
 export async function updateLobbyUsernames(
   roomId: string,
   usernames: { hostUsername?: string; opponentUsername?: string }

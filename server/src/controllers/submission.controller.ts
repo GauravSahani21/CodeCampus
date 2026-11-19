@@ -158,13 +158,19 @@ export const submitCode = async (req: Request & { user?: { id: string } }, res: 
     // Determine final status
     let finalStatus = allPassed ? 'Accepted' : 'Wrong Answer';
     if (!allPassed) {
-      const executionError = results.find(r => r.result.stderr && r.result.exitCode !== 0);
-      if (executionError) {
-        const errText = executionError.result.stderr.toLowerCase();
-        if (errText.includes('syntax') || errText.includes('compile') || errText.includes('error:')) {
-          finalStatus = 'Compile Error';
-        } else {
-          finalStatus = 'Runtime Error';
+      // Check for Time Limit Exceeded first (exitCode 124 = timeout from local/docker execution)
+      const tleResult = results.find(r => r.result.exitCode === 124);
+      if (tleResult) {
+        finalStatus = 'Time Limit Exceeded';
+      } else {
+        const executionError = results.find(r => r.result.stderr && r.result.exitCode !== 0);
+        if (executionError) {
+          const errText = executionError.result.stderr.toLowerCase();
+          if (errText.includes('syntax') || errText.includes('compile') || errText.includes('error:')) {
+            finalStatus = 'Compile Error';
+          } else {
+            finalStatus = 'Runtime Error';
+          }
         }
       }
     }

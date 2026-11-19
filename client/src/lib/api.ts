@@ -23,11 +23,12 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
+      const hadToken = !!sessionStorage.getItem('cf_token');
       sessionStorage.removeItem('cf_token');
       sessionStorage.removeItem('cf_user');
       localStorage.removeItem('cf_token');
       localStorage.removeItem('cf_user');
-      if (!window.location.pathname.startsWith('/auth')) {
+      if (hadToken && !window.location.pathname.startsWith('/auth')) {
         window.location.href = '/auth/login';
       }
     }

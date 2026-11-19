@@ -56,7 +56,7 @@ export const getLeaderboard = async (_req: Request, res: Response): Promise<void
   try {
     const users = await User.find({})
       .select('username avatar stats.solved stats.streak')
-      .sort({ 'stats.solved': -1 })
+      .sort({ 'stats.solved': -1, 'stats.streak': -1 })
       .limit(50);
     res.json(users);
   } catch {

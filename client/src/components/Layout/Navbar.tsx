@@ -200,7 +200,7 @@ export default function Navbar() {
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                 >
                   <div className={styles.avatar}>
-                    {user.avatar ? <img src={user.avatar} alt={user.username} /> : user.username[0].toUpperCase()}
+                    {user.avatar ? <img src={user.avatar} alt={user.username || 'User'} /> : (user.username?.[0] || 'U').toUpperCase()}
                   </div>
                   <span className={styles.username}>{user.username}</span>
                   <ChevronDown size={12} strokeWidth={2} style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />

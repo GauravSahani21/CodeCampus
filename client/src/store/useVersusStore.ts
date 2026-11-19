@@ -131,6 +131,10 @@ export const useVersusStore = create<VersusState>((set, get) => ({
   connectSocket: (token?: string) => {
     const { socket } = get();
     if (socket?.connected) return;
+    if (socket) {
+      socket.removeAllListeners();
+      socket.disconnect();
+    }
 
     // Read token from sessionStorage if not provided
     const authToken =

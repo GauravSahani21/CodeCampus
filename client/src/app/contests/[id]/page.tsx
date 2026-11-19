@@ -1134,7 +1134,7 @@ export default function ContestExamPage() {
   const linesArray = Array.from({ length: lineCount }, (_, i) => i + 1);
 
   return (
-    <div className={styles.examContainer}>
+    <div className={styles.examContainer} data-lenis-prevent="true">
       {/* ── Proctoring Floating Toast ── */}
       {proctorToast && (
         <div className={styles.proctorToast}>
@@ -1986,7 +1986,7 @@ export default function ContestExamPage() {
         </Group>
       ) : (
         /* Regular Split Coding Exam Body */
-        <div className={styles.examBody}>
+        <div className={styles.examBody} data-lenis-prevent="true">
           {/* Left Sidebar: Problem Navigator */}
           <aside className={styles.blankExamSidebar} data-lenis-prevent="true">
             <div className={styles.blankSidebarHeader}>
@@ -2106,7 +2106,17 @@ export default function ContestExamPage() {
 
                   <div className={styles.descSection}>
                     <div className={styles.sectionHeader}>Problem Description</div>
-                    <div className={styles.probText}>{currentProb.description}</div>
+                    <div className={`${styles.probText} ${styles.markdownBody}`}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {currentProb.description
+                          ? (() => {
+                              const text = currentProb.description.replace(/\\n/g, '\n').replace(/\\r/g, '');
+                              const escapedTitle = (currentProb.title || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                              return text.replace(new RegExp(`^#+\\s*${escapedTitle}\\s*\\n*`, 'i'), '').trim();
+                            })()
+                          : ''}
+                      </ReactMarkdown>
+                    </div>
                   </div>
 
                   {currentProb.inputFormat && (
@@ -2162,7 +2172,7 @@ export default function ContestExamPage() {
           </section>
 
           {/* Right Pane: Code Editor */}
-          <section className={styles.editorPane}>
+          <section className={styles.editorPane} data-lenis-prevent="true">
             {/* Editor Header */}
             <div className={styles.editorToolbar}>
               <div className={styles.langSelectWrap}>
@@ -2202,7 +2212,16 @@ export default function ContestExamPage() {
 
             {/* Plain Editor Body: Line numbers + Textarea */}
             <div className={styles.plainEditorWrapper} data-lenis-prevent="true">
-              <div ref={lineNumbersRef} className={styles.lineNumbers} data-lenis-prevent="true">
+              <div
+                ref={lineNumbersRef}
+                className={styles.lineNumbers}
+                data-lenis-prevent="true"
+                onWheel={(e) => {
+                  if (textareaRef.current) {
+                    textareaRef.current.scrollTop += e.deltaY;
+                  }
+                }}
+              >
                 {linesArray.map((line) => (
                   <div key={line} className={styles.lineNum}>
                     {line}
@@ -2217,6 +2236,7 @@ export default function ContestExamPage() {
                 value={currentSol?.code || ''}
                 onChange={(e) => handleCodeChange(e.target.value)}
                 onScroll={handleTextareaScroll}
+                onWheel={(e) => e.stopPropagation()}
                 onKeyDown={handleKeyDown}
                 onPaste={(e) => {
                   e.preventDefault();

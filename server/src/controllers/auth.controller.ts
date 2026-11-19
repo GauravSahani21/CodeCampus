@@ -6,7 +6,7 @@ import User from '../models/User.model';
 import { sendOtpEmail } from '../services/email.service';
 
 const signToken = (id: string, role: string, username: string) =>
-  jwt.sign({ id, role, username }, process.env.JWT_SECRET as string, {
+  jwt.sign({ id, role, username }, process.env.JWT_SECRET || 'codecampus-super-secret-jwt-key', {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   } as jwt.SignOptions);
 
@@ -82,6 +82,8 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         username: user.username,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
+        bio: user.bio,
         stats: user.stats,
         instructorApplication: user.instructorApplication,
       },
@@ -108,7 +110,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = signToken(user.id, user.role, user.username);
     res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role, stats: user.stats },
+      user: { id: user.id, username: user.username, email: user.email, role: user.role, avatar: user.avatar, bio: user.bio, stats: user.stats },
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -148,8 +150,8 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    if (user.resetOtpExpiry && user.resetOtpExpiry > tenMinutesAgo && (user.resetOtpAttempts ?? 0) >= 5) {
+    const now = new Date();
+    if (user.resetOtpExpiry && user.resetOtpExpiry > now && (user.resetOtpAttempts ?? 0) >= 5) {
       res.status(429).json({ error: 'Too many OTP requests. Please wait 10 minutes before trying again.' });
       return;
     }
@@ -271,7 +273,7 @@ export const updateProfile = async (req: Request & { user?: { id: string } }, re
     const token = signToken(user.id, user.role, user.username);
     res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role, stats: user.stats },
+      user: { id: user.id, username: user.username, email: user.email, role: user.role, avatar: user.avatar, bio: user.bio, stats: user.stats },
     });
   } catch {
     res.status(500).json({ error: 'Failed to update profile' });

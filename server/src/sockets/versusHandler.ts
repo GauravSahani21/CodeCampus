@@ -7,6 +7,7 @@ import {
   getLobby,
   updateLobbySettings,
   joinLobby,
+  removeOpponent,
   updateLobbyUsernames,
   setLobbyStarting,
   startLobbyMatch,
@@ -372,10 +373,10 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
     });
   });
 
-  // ── disconnect ───────────────────────────────────────────────────────────
-  // Graceful teardown: if host → start 60s migration timer before destroying.
-  // If opponent → remove from lobby and notify host.
-  socket.on('disconnect', async () => {
+  // ── disconnecting ────────────────────────────────────────────────────────
+  // Graceful teardown: must run on 'disconnecting' because socket.rooms is
+  // already cleared by Socket.IO by the time 'disconnect' fires.
+  socket.on('disconnecting', async () => {
     const rooms = Array.from(socket.rooms).filter((r) => r.startsWith('room:'));
 
     for (const roomChannel of rooms) {
@@ -383,6 +384,31 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
       try {
         const lobby = await getLobby(roomId);
         if (!lobby) continue;
+
+        // If match was in progress, handle abandonment
+        if (lobby.status === 'IN_PROGRESS') {
+          if (matchTimers.has(roomId)) {
+            clearTimeout(matchTimers.get(roomId)!);
+            matchTimers.delete(roomId);
+          }
+          await updateLobbyStatus(roomId, 'COMPLETED');
+          const isHost = lobby.hostId === userId;
+          const winnerId = isHost ? lobby.opponentId : lobby.hostId;
+          const winnerUsername = isHost
+            ? (lobby.opponentUsername || 'Opponent')
+            : (lobby.hostUsername || 'Host');
+          const quitterUsername = isHost
+            ? (lobby.hostUsername || 'Host')
+            : (lobby.opponentUsername || 'Opponent');
+
+          io.to(roomChannel).emit('match:ended', {
+            winnerId,
+            winnerUsername,
+            forfeitedUserId: userId,
+            reason: 'FORFEIT',
+            message: `${quitterUsername} disconnected. Victory awarded to ${winnerUsername}!`,
+          });
+        }
 
         if (lobby.hostId === userId) {
           // Notify opponent and start 60s grace timer
@@ -404,7 +430,7 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
               // No one left, destroy room
               await deleteLobby(roomId);
               io.to(roomChannel).emit('room:closed', { message: 'Host disconnected. Room closed.' });
-              
+
               if (matchTimers.has(roomId)) {
                 clearTimeout(matchTimers.get(roomId)!);
                 matchTimers.delete(roomId);
@@ -420,12 +446,12 @@ export function registerVersusHandler(io: Server, socket: Socket): void {
 
           disconnectTimers.set(roomId, timer);
         } else if (lobby.opponentId === userId) {
-          // Opponent left — clear their slot and notify host
-          const updated = { ...lobby, opponentId: '' };
-          io.to(roomChannel).emit('room:updated', { lobby: updated });
+          // Opponent left — clear their slot in Redis and notify host
+          const updated = await removeOpponent(roomId);
+          io.to(roomChannel).emit('room:updated', { lobby: updated || { ...lobby, opponentId: '', opponentUsername: '' } });
         }
       } catch (err) {
-        console.error('[disconnect]', err);
+        console.error('[disconnecting]', err);
       }
     }
   });

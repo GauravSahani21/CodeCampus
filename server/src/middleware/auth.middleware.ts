@@ -5,6 +5,8 @@ export interface AuthRequest extends Request {
   user?: { id: string; role: string; username: string };
 }
 
+const JWT_SECRET = process.env.JWT_SECRET || 'codecampus-super-secret-jwt-key';
+
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
   const authHeader = (req as any).headers?.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -13,7 +15,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   }
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string; role: string; username: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; role: string; username: string };
     req.user = decoded;
     next();
   } catch {
@@ -28,7 +30,7 @@ export const optionalAuthenticate = (req: AuthRequest, res: Response, next: Next
   }
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string; role: string; username: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; role: string; username: string };
     req.user = decoded;
   } catch {
     // Ignore invalid/expired token for optional authentication

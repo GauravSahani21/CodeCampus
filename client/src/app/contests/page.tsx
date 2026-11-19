@@ -232,15 +232,15 @@ export default function ContestsPage() {
                       <span>{contest.createdBy?.username || 'Instructor'}</span>
                     </div>
                     {contest.hasAttended ? (
-                      <Link href={`/contests/${contest.slug}/results`} className={styles.viewResultsBtn}>
+                      <Link href={`/contests/${contest.slug || contest._id}/results`} className={styles.viewResultsBtn}>
                         <CheckCircle2 size={14} /> View Results
                       </Link>
                     ) : statusInfo.type === 'past' ? (
-                      <Link href={`/contests/${contest.slug}/results`} className={styles.viewResultsBtn}>
+                      <Link href={`/contests/${contest.slug || contest._id}/results`} className={styles.viewResultsBtn}>
                         View Overview
                       </Link>
                     ) : (
-                      <Link href={`/contests/${contest.slug}`} className={styles.enterBtn}>
+                      <Link href={`/contests/${contest.slug || contest._id}`} className={styles.enterBtn}>
                         Enter Contest <ArrowRight size={14} />
                       </Link>
                     )}

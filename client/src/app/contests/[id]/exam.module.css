@@ -373,7 +373,7 @@
 
 .probContent {
   padding: 24px;
-  overflow-y: auto;
+  overflow-y: auto !important;
   flex: 1;
   min-height: 0;
   overscroll-behavior: contain;
@@ -563,6 +563,7 @@
 
 .plainTextarea {
   flex: 1;
+  height: 100%;
   padding: 16px;
   background: transparent;
   color: #e6edf3;
@@ -572,7 +573,7 @@
   border: none;
   outline: none;
   resize: none;
-  overflow-y: auto;
+  overflow-y: auto !important;
   white-space: pre;
   tab-size: 4;
   box-sizing: border-box;

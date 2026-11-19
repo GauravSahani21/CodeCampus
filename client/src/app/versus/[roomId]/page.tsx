@@ -751,7 +751,7 @@ export default function VersusRoomPage() {
       ? 'tie'
       : 'defeat';
 
-    const heroGlowClass = '';
+    // heroGlowClass removed (glow effects removed from results screen)
 
     const titleClass =
       outcomeType === 'victory'

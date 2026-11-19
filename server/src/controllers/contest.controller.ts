@@ -388,7 +388,7 @@ export const submitContest = async (req: AuthRequest, res: Response): Promise<vo
           }
         }
 
-        const totalCases = problem.testCases.length || 1;
+        const totalCases = Math.max(1, problem.testCases.length);
         const problemScore = Math.round((passedCount / totalCases) * cp.points);
         codingScore += problemScore;
 
@@ -528,9 +528,9 @@ export const getMyContestSubmission = async (req: AuthRequest, res: Response): P
     const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const isObjectId = typeof idParam === 'string' && /^[0-9a-fA-F]{24}$/.test(idParam);
 
-    const contest = await Contest.findOne({
-      $or: [{ _id: isObjectId ? idParam : null }, { slug: idParam }],
-    });
+    const contest = await Contest.findOne(
+      isObjectId ? { $or: [{ _id: idParam }, { slug: idParam }] } : { slug: idParam }
+    );
 
     if (!contest) {
       res.status(404).json({ error: 'Contest not found' });
@@ -541,8 +541,7 @@ export const getMyContestSubmission = async (req: AuthRequest, res: Response): P
       contestId: contest._id,
       userId: req.user!.id,
     })
-      .populate('problemSubmissions.problemId', 'title slug difficulty tags')
-      .sort({ submittedAt: -1 });
+      .populate('problemSubmissions.problemId', 'title slug difficulty tags');
 
     res.json({ submission });
   } catch (err) {
@@ -556,9 +555,9 @@ export const getContestLeaderboard = async (req: Request, res: Response): Promis
     const idParam = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const isObjectId = typeof idParam === 'string' && /^[0-9a-fA-F]{24}$/.test(idParam);
 
-    const contest = await Contest.findOne({
-      $or: [{ _id: isObjectId ? idParam : null }, { slug: idParam }],
-    });
+    const contest = await Contest.findOne(
+      isObjectId ? { $or: [{ _id: idParam }, { slug: idParam }] } : { slug: idParam }
+    );
 
     if (!contest) {
       res.status(404).json({ error: 'Contest not found' });
